@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Local environment / secrets (NO COMMIT)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+
+# Build outputs (si usas build tooling)
+dist/
+build/
+.next/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Cursor
+.cursor/
+
+# Generated / report files
+*.xlsx
+*.xls
+*.csv
+Reporte_*.xlsx
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/
+*.lcov
+
