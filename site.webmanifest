@@ -1,0 +1,22 @@
+{
+  "name": "Montallantas Los Castellanos",
+  "short_name": "Los Castellanos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#FF6B35",
+  "description": "Sistema de gestion para servicios, empleados, inventario y reportes.",
+  "lang": "es-CO",
+  "icons": [
+    {
+      "src": "assets/branding/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/branding/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
