@@ -74,6 +74,24 @@
                 </a>
             </div>
             <div class="nav-item">
+                <a class="nav-link" onclick="showSection('ventaInsumosSection')">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Venta Insumos</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" onclick="showSection('historialVentasInsumosSection')">
+                    <i class="fas fa-history"></i>
+                    <span>Historial Ventas</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" onclick="showSection('prestamosSection')">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <span>Préstamos</span>
+                </a>
+            </div>
+            <div class="nav-item">
                 <a class="nav-link" onclick="showSection('reportsSection')">
                     <i class="fas fa-chart-bar"></i>
                     <span>Reportes</span>
@@ -423,6 +441,152 @@
                 </div>
             </div>
 
+            <!-- Venta Insumos Section -->
+            <div id="ventaInsumosSection" class="section">
+                <h1 class="page-title">
+                    <i class="fas fa-shopping-cart"></i>
+                    Venta Directa de Insumos
+                </h1>
+
+                <div class="admin-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-box"></i> Seleccionar Insumos</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label><i class="fas fa-box"></i> Insumo</label>
+                                <div style="display: flex; gap: 10px;">
+                                    <select id="ventaInsumoSelect" class="form-control" style="flex: 1;">
+                                        <option value="">Seleccionar insumo...</option>
+                                    </select>
+                                    <input type="number" id="ventaInsumoCantidad" class="form-control" style="width: 80px;" placeholder="Cant." min="1" value="1">
+                                    <button class="btn btn-primary" onclick="addInsumoToVenta()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-user"></i> Cliente (Opcional)</label>
+                                <input type="text" id="ventaClient" class="form-control" placeholder="Nombre o documento del cliente">
+                            </div>
+
+                            <div class="selected-insumos" id="ventaSelectedInsumos"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="summary-box">
+                            <h3><i class="fas fa-receipt"></i> Resumen de Venta</h3>
+                            <div class="summary-row">
+                                <span>Insumos:</span>
+                                <span>$<span id="ventaInsumosTotal">0</span></span>
+                            </div>
+                            <div class="summary-row total">
+                                <span>TOTAL A COBRAR:</span>
+                                <span style="color: var(--primary);">$<span id="ventaTotal">0</span></span>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-success btn-lg" style="width: 100%; margin-top: 20px;" onclick="saveVentaInsumos()">
+                            <i class="fas fa-check-circle"></i> Guardar Venta
+                        </button>
+
+                        <div id="ventaInvoicePreview"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historial Ventas Insumos Section -->
+            <div id="historialVentasInsumosSection" class="section">
+                <h1 class="page-title">
+                    <i class="fas fa-history"></i>
+                    Historial de Ventas de Insumos
+                </h1>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-calendar-alt"></i> Filtrar por Fecha</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label><i class="fas fa-calendar"></i> Fecha</label>
+                                <input type="date" id="historialVentasInsumosDate" class="form-control">
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="loadHistorialVentasInsumos()">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-list"></i> Ventas de Insumos</h2>
+                    </div>
+                    <div class="card-body" id="historialVentasInsumosList">
+                        <div class="empty-state">
+                            <i class="fas fa-shopping-cart"></i>
+                            <p>Selecciona una fecha para ver las ventas</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Préstamos Section -->
+            <div id="prestamosSection" class="section">
+                <h1 class="page-title">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    Préstamos a Empleados
+                </h1>
+
+                <div class="admin-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-plus-circle"></i> Registrar Préstamo</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label><i class="fas fa-user"></i> Empleado</label>
+                                <select id="prestamoEmployee" class="form-control">
+                                    <option value="">Seleccionar empleado...</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-dollar-sign"></i> Monto del Préstamo</label>
+                                <input type="number" id="prestamoAmount" class="form-control" placeholder="Monto en COP" min="0" step="0.01">
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-comment"></i> Motivo (Opcional)</label>
+                                <input type="text" id="prestamoReason" class="form-control" placeholder="Ej: Adelanto de nómina">
+                            </div>
+
+                            <button class="btn btn-success" onclick="addPrestamo()">
+                                <i class="fas fa-save"></i> Guardar Préstamo
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-list"></i> Préstamos del Día</h2>
+                        </div>
+                        <div class="card-body" id="prestamosList">
+                            <div class="empty-state">
+                                <i class="fas fa-hand-holding-usd"></i>
+                                <p>No hay préstamos registrados hoy</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Reports Section -->
             <div id="reportsSection" class="section">
                 <h1 class="page-title">
@@ -447,6 +611,9 @@
                             </button>
                             <button class="btn btn-success" onclick="exportToExcel()">
                                 <i class="fas fa-file-excel"></i> Exportar a Excel
+                            </button>
+                            <button class="btn btn-warning" onclick="showEmployeeEarnings()">
+                                <i class="fas fa-coins"></i> Ver Ganancias Empleados
                             </button>
                         </div>
                     </div>

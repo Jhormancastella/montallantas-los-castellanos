@@ -1,0 +1,30 @@
+/* ============================================
+   CONFIGURACIÓN LOCAL - EJEMPLO
+   ============================================
+   INSTRUCCIONES:
+   1. Copiar este archivo a js/config.local.js
+   2. Completar con tus credenciales reales
+   3. El archivo config.local.js NO se sube a GitHub
+   ============================================ */
+
+window.APP_CONFIG_LOCAL = {
+    google: {
+        verificationToken: "TU_TOKEN_VERIFICACION_GOOGLE"
+    },
+    firebase: {
+        enabled: true,
+        config: {
+            apiKey: "TU_API_KEY",
+            authDomain: "tu_proyecto.firebaseapp.com",
+            projectId: "tu_proyecto_id",
+            storageBucket: "tu_proyecto.firebasestorage.app",
+            messagingSenderId: "tu_messaging_sender_id",
+            appId: "tu_app_id"
+        }
+    },
+    supabase: {
+        enabled: true,
+        url: "https://tu_proyecto.supabase.co",
+        anonKey: "tu_anon_key"
+    }
+};
