@@ -42,194 +42,7 @@
         });
     }
 
-    function createLocalStorageAdapter(config) {
-        const storageKey = config?.storageKeys?.database || "montallantas_los_castellanos_db";
 
-        function readStore() {
-            try {
-                return JSON.parse(localStorage.getItem(storageKey)) || {};
-            } catch (error) {
-                console.warn("No se pudo leer la base local, se reiniciara.", error);
-                return {};
-            }
-        }
-
-        function writeStore(store) {
-            localStorage.setItem(storageKey, JSON.stringify(store));
-        }
-
-        function getCollectionEntries(collectionName) {
-            const store = readStore();
-            const collection = store[collectionName] || {};
-
-            return Object.entries(collection).map(([id, data]) => ({
-                id,
-                data: cloneData(data)
-            }));
-        }
-
-        function saveCollectionEntry(collectionName, id, data) {
-            const store = readStore();
-            store[collectionName] = store[collectionName] || {};
-            store[collectionName][id] = cloneData(data);
-            writeStore(store);
-        }
-
-        function removeCollectionEntry(collectionName, id) {
-            const store = readStore();
-            if (!store[collectionName]) {
-                return;
-            }
-
-            delete store[collectionName][id];
-            writeStore(store);
-        }
-
-        function applyUpdates(currentData, updates) {
-            const nextData = { ...currentData };
-
-            Object.entries(updates).forEach(([key, value]) => {
-                if (value && value.__operation === "increment") {
-                    const currentValue = Number(nextData[key] || 0);
-                    nextData[key] = currentValue + Number(value.value || 0);
-                    return;
-                }
-
-                nextData[key] = value;
-            });
-
-            return nextData;
-        }
-
-        function sortEntries(entries, orderField, direction) {
-            if (!orderField) {
-                return entries;
-            }
-
-            const multiplier = direction === "desc" ? -1 : 1;
-
-            return [...entries].sort((a, b) => {
-                const valueA = a.data[orderField];
-                const valueB = b.data[orderField];
-
-                if (valueA === valueB) {
-                    return 0;
-                }
-
-                return valueA > valueB ? multiplier : -multiplier;
-            });
-        }
-
-        function createQuery(collectionName, options = {}) {
-            const queryState = {
-                filters: options.filters || [],
-                order: options.order || null,
-                limit: options.limit || null
-            };
-
-            function resolveEntries() {
-                let entries = getCollectionEntries(collectionName);
-
-                queryState.filters.forEach((filter) => {
-                    entries = entries.filter(({ data }) => data[filter.field] === filter.value);
-                });
-
-                if (queryState.order) {
-                    entries = sortEntries(entries, queryState.order.field, queryState.order.direction);
-                }
-
-                if (typeof queryState.limit === "number") {
-                    entries = entries.slice(0, queryState.limit);
-                }
-
-                return entries;
-            }
-
-            return {
-                where(field, operator, value) {
-                    if (operator !== "==") {
-                        throw new Error("El modo local solo soporta filtros '=='.");
-                    }
-
-                    return createQuery(collectionName, {
-                        ...queryState,
-                        filters: [...queryState.filters, { field, value }]
-                    });
-                },
-                orderBy(field, direction = "asc") {
-                    return createQuery(collectionName, {
-                        ...queryState,
-                        order: { field, direction }
-                    });
-                },
-                limit(value) {
-                    return createQuery(collectionName, {
-                        ...queryState,
-                        limit: value
-                    });
-                },
-                get() {
-                    return Promise.resolve(createQuerySnapshot(resolveEntries()));
-                },
-                onSnapshot(callback) {
-                    callback(createQuerySnapshot(resolveEntries()));
-                    return () => {};
-                },
-                add(data) {
-                    const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                    saveCollectionEntry(collectionName, id, data);
-                    return Promise.resolve({ id });
-                },
-                doc(id) {
-                    return {
-                        update(updates) {
-                            const currentEntry = getCollectionEntries(collectionName).find((entry) => entry.id === id);
-
-                            if (!currentEntry) {
-                                return Promise.reject(new Error(`No existe el registro ${id}.`));
-                            }
-
-                            saveCollectionEntry(collectionName, id, applyUpdates(currentEntry.data, updates));
-                            return Promise.resolve();
-                        },
-                        delete() {
-                            removeCollectionEntry(collectionName, id);
-                            return Promise.resolve();
-                        }
-                    };
-                }
-            };
-        }
-
-        const localStorageService = {
-            ref(path) {
-                return {
-                    put(file) {
-                        return fileToDataUrl(file).then((dataUrl) => ({
-                            ref: {
-                                fullPath: path,
-                                getDownloadURL() {
-                                    return Promise.resolve(dataUrl);
-                                }
-                            }
-                        }));
-                    }
-                };
-            }
-        };
-
-        return {
-            mode: "local",
-            db: {
-                collection(collectionName) {
-                    return createQuery(collectionName);
-                }
-            },
-            storage: localStorageService,
-            auth: null,
-            fieldIncrement: createIncrementToken
-        };
-    }
 
     function createFirebaseAdapter(config) {
         if (!window.firebase) {
@@ -490,23 +303,28 @@
     }
 
     function createAppServices(config) {
+        // Intentar Supabase primero si está habilitado
         if (config?.supabase?.enabled) {
             try {
                 return createSupabaseAdapter(config);
             } catch (error) {
-                console.warn("No se pudo activar Supabase, se intentara Firebase.", error);
+                console.error("Error al inicializar Supabase:", error);
+                throw new Error("No se pudo conectar a Supabase. Verifica tu configuración en js/config.local.js");
             }
         }
 
+        // Intentar Firebase si está habilitado
         if (config?.firebase?.enabled) {
             try {
                 return createFirebaseAdapter(config);
             } catch (error) {
-                console.warn("No se pudo activar Firebase, se usara el modo local.", error);
+                console.error("Error al inicializar Firebase:", error);
+                throw new Error("No se pudo conectar a Firebase. Verifica tu configuración en js/config.local.js");
             }
         }
 
-        return createLocalStorageAdapter(config);
+        // Si ninguno está habilitado, lanzar error
+        throw new Error("Ningún servicio de base de datos está habilitado. Configura Firebase o Supabase en js/config.local.js");
     }
 
     window.appServices = createAppServices(appConfig);

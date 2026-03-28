@@ -1,3 +1,11 @@
+// ============================================
+// MONTALLANTAS LOS CASTELLANOS - CONFIGURACIÓN BASE
+// ============================================
+// Este archivo contiene la configuración por defecto.
+// Para personalizar, crea js/config.local.js (ver .env.example)
+// El archivo config.local.js está en .gitignore y NO se sube al repositorio
+
+// Configuración base (se sobrescribe con config.local.js si existe)
 window.APP_CONFIG = Object.freeze({
     site: {
         name: "Montallantas Los Castellanos",
@@ -12,19 +20,23 @@ window.APP_CONFIG = Object.freeze({
         verificationToken: "REEMPLAZAR_CON_TOKEN_SEARCH_CONSOLE"
     },
     firebase: {
-        enabled: true,
+        enabled: false, // Deshabilitado por defecto, se habilita en config.local.js
         config: {
-            apiKey: "AIzaSyBTIHBZlU-hVpG1vSPw_TYSsOcQkhBON5s",
-            authDomain: "montallantas-6db00.firebaseapp.com",
-            projectId: "montallantas-6db00",
-            storageBucket: "montallantas-6db00.firebasestorage.app",
-            messagingSenderId: "436691398022",
-            appId: "1:436691398022:web:2e4c853ec39fd8b5cdd007"
+            apiKey: "",
+            authDomain: "",
+            projectId: "",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: ""
         }
     },
     supabase: {
-        enabled: true,
-        url: "https://kspqqesivfgmdglsvxig.supabase.co",
-        anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzcHFxZXNpdmZnbWRnbHN2eGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NzM3MTYsImV4cCI6MjA5MDA0OTcxNn0.2xHc97Za2V4vwQD97astIB3YqduQ9JBJ0hXoKoMYtsY"
+        enabled: false, // Deshabilitado por defecto, se habilita en config.local.js
+        url: "",
+        anonKey: ""
     }
 });
+
+// Nota: Las credenciales reales están en js/config.local.js
+// Si config.local.js no existe, la aplicación usará modo local (localStorage)
+// Para producción, asegúrate de crear config.local.js con las credenciales correctas

@@ -106,6 +106,7 @@ flowchart TD
 montallantas-los-castellanos/
 ├── index.html
 ├── README.md
+├── .env.example              # Variables de entorno de ejemplo
 ├── robots.txt
 ├── sitemap.xml
 ├── site.webmanifest
@@ -118,7 +119,8 @@ montallantas-los-castellanos/
 │   └── styles.css
 └── js/
     ├── app.js
-    ├── config.js
+    ├── config.js             # Configuración base (sin credenciales)
+    ├── config.local.js       # Credenciales reales (NO se sube a git)
     └── services/
         └── app-services.js
 ```
@@ -141,16 +143,66 @@ montallantas-los-castellanos/
 
 ## Configuracion de servicios
 
+### Estructura de configuracion
+
+El sistema usa dos archivos de configuracion:
+
+1. **`js/config.js`**: Configuracion base (se sube a git, sin credenciales)
+2. **`js/config.local.js`**: Credenciales reales (NO se sube a git)
+
+### Configuracion inicial
+
+1. Copia el archivo de ejemplo:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Crea `js/config.local.js` con tus credenciales reales:
+
+   ```javascript
+   window.APP_CONFIG = Object.freeze({
+       site: {
+           name: "Montallantas Los Castellanos",
+           description: "Sistema de gestion...",
+           locale: "es-CO",
+           url: "https://TU-DOMINIO.com"
+       },
+       storageKeys: {
+           database: "montallantas_los_castellanos_db"
+       },
+       google: {
+           verificationToken: "TU_TOKEN"
+       },
+       firebase: {
+           enabled: true,
+           config: {
+               apiKey: "TU_API_KEY",
+               authDomain: "tu-proyecto.firebaseapp.com",
+               projectId: "tu-proyecto",
+               storageBucket: "tu-proyecto.appspot.com",
+               messagingSenderId: "123456789",
+               appId: "1:123456789:web:abc123"
+           }
+       },
+       supabase: {
+           enabled: true,
+           url: "https://tu-proyecto.supabase.co",
+           anonKey: "eyJ..."
+       }
+   });
+   ```
+
 ### Firebase (autenticacion)
 
-En `js/config.js`:
+En `js/config.local.js`:
 
 - `firebase.enabled: true`
 - Completar `apiKey`, `authDomain`, `projectId`, etc.
 
 ### Supabase (base de datos)
 
-En `js/config.js`:
+En `js/config.local.js`:
 
 - `supabase.enabled: true`
 - `supabase.url`

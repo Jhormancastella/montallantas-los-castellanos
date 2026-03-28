@@ -52,16 +52,13 @@ async function validateAdminAccess() {
     const user = auth.currentUser;
     if (!user) return false;
 
-    if (dataMode === 'local') {
-        isAdminUser = true;
-        return true;
-    }
+    // En modo Supabase, permitimos admin al usuario autenticado con Firebase Auth
     if (dataMode === 'supabase') {
-        // En modo Firebase Auth + Supabase DB permitimos admin al usuario autenticado.
         isAdminUser = true;
         return true;
     }
 
+    // En modo Firebase, verificar colección admins
     try {
         const adminDoc = await db.collection('admins').doc(user.uid).get();
         isAdminUser = adminDoc.exists && adminDoc.data()?.enabled === true;
@@ -77,7 +74,6 @@ async function validateAdminAccess() {
 }
 
 function requireAdminOrToast() {
-    if (dataMode === 'local') return true;
     if (!auth?.currentUser) {
         showToast('Debes iniciar sesión para continuar', 'error');
         return false;
@@ -1730,13 +1726,6 @@ window.onload = () => {
     updateCurrentDate();
     document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
 
-    if (dataMode === 'local') {
-        showToast('Modo local activo. Los datos se guardan localmente.', 'success');
-        loadDashboardData();
-        loadPOSData();
-        loadAdminData();
-        return;
-    }
-
+    // Inicializar autenticación (requerido para Firebase y Supabase)
     initAuthListener();
 };
