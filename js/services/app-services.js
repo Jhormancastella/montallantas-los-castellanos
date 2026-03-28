@@ -129,6 +129,9 @@
             }
 
             const serialized = { ...data };
+            
+            // Convert camelCase to snake_case if needed
+            // The app.js uses snake_case, so we only need to handle camelCase inputs
             if ("imagenUrl" in serialized) {
                 serialized.imagen_url = serialized.imagenUrl;
                 delete serialized.imagenUrl;
@@ -166,10 +169,10 @@
                 delete serialized.totalCobrado;
             }
 
+            // Remove increment operations (they are handled in doc().update())
             Object.keys(serialized).forEach((key) => {
                 const value = serialized[key];
                 if (value && value.__operation === "increment") {
-                    // Se procesa en doc().update()
                     delete serialized[key];
                 }
             });
@@ -287,7 +290,17 @@
             }
         };
 
-        const auth = config?.firebase?.enabled ? createFirebaseAdapter(config).auth : null;
+        let auth = null;
+        if (config?.firebase?.enabled) {
+            try {
+                const firebaseAdapter = createFirebaseAdapter(config);
+                auth = firebaseAdapter.auth;
+                console.log("Firebase Auth inicializado correctamente para Supabase");
+            } catch (error) {
+                console.warn("No se pudo inicializar Firebase Auth para Supabase:", error.message);
+                // Continuar sin autenticación Firebase
+            }
+        }
 
         return {
             mode: "supabase",

@@ -1125,17 +1125,17 @@ function generateReport() {
             snap.forEach(doc => {
                 const data = doc.data();
                 currentReportData.push({ id: doc.id, ...data });
-                totalVentas += data.totalCobrado;
-                totalInsumos += data.totalInsumos;
+                totalVentas += data.total_cobrado || data.totalCobrado;
+                totalInsumos += data.total_insumos || data.totalInsumos;
                 totalComisiones += data.comision;
 
                 tbody.innerHTML += `
                     <tr>
                         <td>${data.hora}</td>
                         <td>${data.cliente}</td>
-                        <td>${data.empleadoNombre || data.empleadoId}</td>
-                        <td>${data.servicioNombre || data.servicioId}</td>
-                        <td><strong>${formatCOP(data.totalCobrado)}</strong></td>
+                        <td>${data.empleado_nombre || data.empleadoNombre || data.empleado_id || data.empleadoId}</td>
+                        <td>${data.servicio_nombre || data.servicioNombre || data.servicio_id || data.servicioId}</td>
+                        <td><strong>${formatCOP(data.total_cobrado || data.totalCobrado)}</strong></td>
                         <td>
                             <button class="btn btn-warning btn-sm" onclick="editServicioRealizado('${doc.id}')">
                                 <i class="fas fa-edit"></i>
@@ -1190,12 +1190,12 @@ function exportToExcel() {
         Fecha: item.fecha,
         Hora: item.hora,
         Cliente: item.cliente,
-        Empleado: item.empleadoNombre || item.empleadoId,
-        Servicio: item.servicioNombre || item.servicioId,
-        Precio_Servicio: item.precioServicio,
-        Total_Insumos: item.totalInsumos,
+        Empleado: item.empleado_nombre || item.empleadoNombre || item.empleado_id || item.empleadoId,
+        Servicio: item.servicio_nombre || item.servicioNombre || item.servicio_id || item.servicioId,
+        Precio_Servicio: item.precio_servicio || item.precioServicio,
+        Total_Insumos: item.total_insumos || item.totalInsumos,
         Comision_Empleado: item.comision,
-        Total_Cobrado: item.totalCobrado
+        Total_Cobrado: item.total_cobrado || item.totalCobrado
     }));
 
     const ws = XLSX.utils.json_to_sheet(excelData);
@@ -1214,8 +1214,9 @@ function deleteServicioRealizado(id) {
             if (doc.exists) {
                 const data = doc.data();
                 // Restaurar stock de insumos
-                if (data.insumosUtilizados && data.insumosUtilizados.length > 0) {
-                    data.insumosUtilizados.forEach(ins => {
+                const insumosUtilizados = data.insumos_utilizados || data.insumosUtilizados || [];
+                if (insumosUtilizados.length > 0) {
+                    insumosUtilizados.forEach(ins => {
                         db.collection('insumos').doc(ins.id).update({
                             stock: fieldIncrement(1)
                         });
@@ -1256,11 +1257,11 @@ function editServicioRealizado(id) {
                         </div>
                         <div class="form-group">
                             <label><i class="fas fa-dollar-sign"></i> Precio Servicio</label>
-                            <input type="number" id="editServicePrice" class="form-control" value="${data.precioServicio || 0}">
+                            <input type="number" id="editServicePrice" class="form-control" value="${data.precio_servicio || data.precioServicio || 0}">
                         </div>
                         <div class="form-group">
                             <label><i class="fas fa-box"></i> Total Insumos</label>
-                            <input type="number" id="editInsumosTotal" class="form-control" value="${data.totalInsumos || 0}">
+                            <input type="number" id="editInsumosTotal" class="form-control" value="${data.total_insumos || data.totalInsumos || 0}">
                         </div>
                         <div class="form-group">
                             <label><i class="fas fa-coins"></i> Comisión</label>
@@ -1268,7 +1269,7 @@ function editServicioRealizado(id) {
                         </div>
                         <div class="form-group">
                             <label><i class="fas fa-dollar-sign"></i> Total Cobrado</label>
-                            <input type="number" id="editTotal" class="form-control" value="${data.totalCobrado || 0}">
+                            <input type="number" id="editTotal" class="form-control" value="${data.total_cobrado || data.totalCobrado || 0}">
                         </div>
                         <button type="submit" class="btn btn-success btn-lg" style="width: 100%;">
                             <i class="fas fa-save"></i> Guardar Cambios
@@ -1288,10 +1289,10 @@ function editServicioRealizado(id) {
                 
                 const updatedData = {
                     cliente: document.getElementById('editClient').value,
-                    precioServicio: parseInt(document.getElementById('editServicePrice').value),
-                    totalInsumos: parseInt(document.getElementById('editInsumosTotal').value),
+                    precio_servicio: parseInt(document.getElementById('editServicePrice').value),
+                    total_insumos: parseInt(document.getElementById('editInsumosTotal').value),
                     comision: parseInt(document.getElementById('editCommission').value),
-                    totalCobrado: parseInt(document.getElementById('editTotal').value)
+                    total_cobrado: parseInt(document.getElementById('editTotal').value)
                 };
                 
                 db.collection('servicios_realizados').doc(id).update(updatedData)
@@ -1336,8 +1337,8 @@ function showEmployeeEarnings() {
         // Procesar servicios realizados
         servicesSnap.forEach(doc => {
             const data = doc.data();
-            const empId = data.empleadoId;
-            const empName = data.empleadoNombre || data.empleadoId;
+            const empId = data.empleado_id || data.empleadoId;
+            const empName = data.empleado_nombre || data.empleadoNombre || data.empleado_id || data.empleadoId;
             const commission = data.comision || 0;
 
             if (!employeeEarnings[empId]) {
@@ -1356,8 +1357,8 @@ function showEmployeeEarnings() {
         // Procesar préstamos
         prestamosSnap.forEach(doc => {
             const data = doc.data();
-            const empId = data.empleadoId;
-            const empName = data.empleadoNombre || data.empleadoId;
+            const empId = data.empleado_id || data.empleadoId;
+            const empName = data.empleado_nombre || data.empleadoNombre || data.empleado_id || data.empleadoId;
             const monto = data.monto || 0;
 
             if (!employeeEarnings[empId]) {
@@ -1656,7 +1657,7 @@ function loadPrestamosData() {
                             <i class="fas fa-user"></i>
                         </div>
                         <div class="list-item-text">
-                            <h4>${pres.empleadoNombre}</h4>
+                            <h4>${pres.empleado_nombre || pres.empleadoNombre}</h4>
                             <p>${pres.hora} - ${pres.motivo || 'Sin motivo'}</p>
                         </div>
                     </div>
@@ -1696,8 +1697,8 @@ function addPrestamo() {
     db.collection('prestamos').add({
         fecha: date,
         hora: time,
-        empleadoId: employeeId,
-        empleadoNombre: employeeName,
+        empleado_id: employeeId,
+        empleado_nombre: employeeName,
         monto: amount,
         motivo: reason || 'Sin motivo'
     }).then(() => {
