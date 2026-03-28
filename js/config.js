@@ -1,14 +1,4 @@
-/* ============================================
-   CONFIGURACIÓN - MONTALLANTAS LOS CASTELLANOS
-   ============================================
-   NOTA DE SEGURIDAD:
-   - Las credenciales se cargan desde js/config.local.js
-   - El archivo config.local.js NO se sube a GitHub
-   - Ver config.local.js.example para la estructura
-   ============================================ */
-
-// Configuración base (sin credenciales)
-const baseConfig = {
+window.APP_CONFIG = Object.freeze({
     site: {
         name: "Montallantas Los Castellanos",
         description: "Sistema de gestion para servicios, empleados, inventario y reportes de Montallantas Los Castellanos.",
@@ -17,22 +7,24 @@ const baseConfig = {
     },
     storageKeys: {
         database: "montallantas_los_castellanos_db"
+    },
+    google: {
+        verificationToken: "REEMPLAZAR_CON_TOKEN_SEARCH_CONSOLE"
+    },
+    firebase: {
+        enabled: true,
+        config: {
+            apiKey: "AIzaSyBTIHBZlU-hVpG1vSPw_TYSsOcQkhBON5s",
+            authDomain: "montallantas-6db00.firebaseapp.com",
+            projectId: "montallantas-6db00",
+            storageBucket: "montallantas-6db00.firebasestorage.app",
+            messagingSenderId: "436691398022",
+            appId: "1:436691398022:web:2e4c853ec39fd8b5cdd007"
+        }
+    },
+    supabase: {
+        enabled: true,
+        url: "https://kspqqesivfgmdglsvxig.supabase.co",
+        anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzcHFxZXNpdmZnbWRnbHN2eGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NzM3MTYsImV4cCI6MjA5MDA0OTcxNn0.2xHc97Za2V4vwQD97astIB3YqduQ9JBJ0hXoKoMYtsY"
     }
-};
-
-// Intentar cargar configuración local (con credenciales)
-let localConfig = {};
-try {
-    // Este archivo se crea localmente y NO se sube a GitHub
-    if (window.APP_CONFIG_LOCAL) {
-        localConfig = window.APP_CONFIG_LOCAL;
-    }
-} catch (error) {
-    console.warn("No se encontró config.local.js. Usando modo local.");
-}
-
-// Configuración final
-window.APP_CONFIG = Object.freeze({
-    ...baseConfig,
-    ...localConfig
 });
