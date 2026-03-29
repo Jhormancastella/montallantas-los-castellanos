@@ -1089,3 +1089,149 @@ select.form-control {
         grid-template-columns: 1fr 1fr;
     }
 }
+
+/* ============================================
+   TICKET DE FACTURA
+   ============================================ */
+.ticket {
+    background: #fff;
+    width: 300px;
+    margin: 16px auto 0;
+    padding: 20px 18px 16px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    color: #111;
+    border: 1px dashed #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+}
+
+.ticket-logo-row {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.ticket-logo {
+    width: 160px;
+    height: auto;
+    border-radius: 6px;
+}
+
+.ticket-title {
+    text-align: center;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.ticket-divider {
+    text-align: center;
+    color: #888;
+    font-size: 11px;
+    margin: 6px 0;
+    letter-spacing: 1px;
+}
+
+.ticket-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+    gap: 8px;
+}
+
+.ticket-row span:first-child {
+    color: #555;
+    flex-shrink: 0;
+}
+
+.ticket-row span:last-child {
+    text-align: right;
+    font-weight: 500;
+    word-break: break-word;
+}
+
+.ticket-total {
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    color: #FF6B35;
+    margin: 6px 0;
+    letter-spacing: 0.5px;
+}
+
+.ticket-footer {
+    text-align: center;
+    font-size: 12px;
+    color: #777;
+    margin-top: 6px;
+}
+
+/* Miniatura de imagen en lista de insumos */
+.insumo-thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(0,0,0,0.08);
+}
+
+/* List item clickeable */
+.list-item-clickable {
+    cursor: pointer;
+    transition: var(--transition);
+}
+.list-item-clickable:hover {
+    background: rgba(255, 107, 53, 0.06);
+    transform: translateX(3px);
+}
+
+/* Modal detalle insumo */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.2s ease;
+}
+.modal-box {
+    background: var(--white);
+    border-radius: var(--radius);
+    width: 100%;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #fff;
+}
+.modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+.modal-close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.2); }
+.modal-body {
+    padding: 20px;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+}

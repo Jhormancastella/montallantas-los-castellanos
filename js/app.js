@@ -2,16 +2,28 @@
    MONTALLANTAS LOS CASTELLANOS - APLICACIÓN
    ============================================ */
 
+// Escapa caracteres HTML para prevenir XSS
+function esc(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Configuración Firebase
 const { db, storage, auth, fieldIncrement, mode: dataMode } = window.appServices;
 
-// ============================================
-// VARIABLES GLOBALES
-// ============================================
+// Variables globales
 let selectedInsumos = [];
 let currentReportData = [];
 let isLoggedIn = false;
 let isAdminUser = false;
+// Contexto de factura activa (evita pasar datos de usuario en atributos onclick)
+let _invoiceCtx = {};
+let _ventaInvoiceCtx = {};
 
 // ============================================
 // AUTENTICACIÓN
@@ -280,8 +292,8 @@ function loadDashboardData() {
                                 <i class="fas fa-receipt"></i>
                             </div>
                             <div class="list-item-text">
-                                <h4>${data.cliente || 'Sin nombre'}</h4>
-                                <p>${data.hora} - ${formatCOP(data.totalCobrado)}</p>
+                                <h4>${esc(data.cliente) || 'Sin nombre'}</h4>
+                                <p>${esc(data.hora)} - ${formatCOP(data.totalCobrado)}</p>
                             </div>
                         </div>
                         <span class="badge badge-success">Completado</span>
@@ -296,10 +308,80 @@ function loadDashboardData() {
         document.getElementById('statEmpleados').textContent = snap.size;
     });
     
-    // Contar insumos
+    // Contar insumos y bajo stock
     db.collection('insumos').get().then(snap => {
         document.getElementById('statInsumos').textContent = snap.size;
+        const bajoStockList = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(ins => ins.stock < (ins.stockMinimo ?? 10));
+
+        const changeEl = document.querySelector('.stat-card.info .stat-change');
+        if (changeEl) {
+            if (bajoStockList.length > 0) {
+                changeEl.className = 'stat-change down';
+                changeEl.style.cursor = 'pointer';
+                changeEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${bajoStockList.length} con bajo stock — <u>ver</u>`;
+                changeEl.onclick = () => showBajoStockModal(bajoStockList);
+            } else {
+                changeEl.className = 'stat-change up';
+                changeEl.style.cursor = 'default';
+                changeEl.innerHTML = `<i class="fas fa-check-circle"></i> Stock al día`;
+                changeEl.onclick = null;
+            }
+        }
     });
+}
+
+function showBajoStockModal(lista) {
+    const existing = document.getElementById('bajoStockModal');
+    if (existing) existing.remove();
+
+    const rows = lista.map(ins => {
+        const min = ins.stockMinimo ?? 10;
+        const pct = Math.round((ins.stock / min) * 100);
+        const barColor = ins.stock === 0 ? 'var(--danger)' : 'var(--warning)';
+        return `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0;">
+                ${ins.imagenUrl
+                    ? `<img src="${esc(ins.imagenUrl)}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0;" onerror="this.style.display='none'">`
+                    : `<div style="width:40px;height:40px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-box" style="color:#ccc;"></i></div>`
+                }
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(ins.nombre)}</div>
+                    <div style="font-size:0.75rem;color:var(--gray);">${esc(ins.categoria)}</div>
+                    <div style="margin-top:4px;background:#eee;border-radius:4px;height:6px;overflow:hidden;">
+                        <div style="width:${Math.min(pct, 100)}%;height:100%;background:${barColor};border-radius:4px;"></div>
+                    </div>
+                </div>
+                <div style="text-align:right;flex-shrink:0;">
+                    <div style="font-size:1.1rem;font-weight:700;color:${ins.stock === 0 ? 'var(--danger)' : 'var(--warning)'};">${ins.stock}</div>
+                    <div style="font-size:0.7rem;color:var(--gray);">mín: ${min}</div>
+                </div>
+            </div>`;
+    }).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'bajoStockModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-box" style="max-width:420px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Insumos con bajo stock</h3>
+                <button class="modal-close" onclick="document.getElementById('bajoStockModal').remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="max-height:60vh;overflow-y:auto;">
+                ${rows}
+            </div>
+            <div style="padding:12px 20px;">
+                <button class="btn btn-primary" style="width:100%;" onclick="document.getElementById('bajoStockModal').remove();showSection('insumosSection')">
+                    <i class="fas fa-boxes"></i> Ir a Inventario
+                </button>
+            </div>
+        </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
 }
 
 // ============================================
@@ -312,7 +394,7 @@ function loadPOSData() {
         select.innerHTML = '<option value="">Seleccionar empleado...</option>';
         snap.forEach(doc => {
             const emp = doc.data();
-            select.innerHTML += `<option value="${doc.id}" data-commission="${emp.comision}">${emp.nombre}</option>`;
+            select.innerHTML += `<option value="${doc.id}" data-commission="${emp.comision}">${esc(emp.nombre)}</option>`;
         });
     });
 
@@ -322,7 +404,7 @@ function loadPOSData() {
         select.innerHTML = '<option value="">Seleccionar servicio...</option>';
         snap.forEach(doc => {
             const serv = doc.data();
-            select.innerHTML += `<option value="${doc.id}" data-price="${serv.precio}">${serv.nombre}</option>`;
+            select.innerHTML += `<option value="${doc.id}" data-price="${serv.precio}">${esc(serv.nombre)}</option>`;
         });
     });
 
@@ -332,15 +414,20 @@ function loadPOSData() {
         select.innerHTML = '<option value="">Seleccionar insumo...</option>';
         snap.forEach(doc => {
             const ins = doc.data();
-            select.innerHTML += `<option value="${doc.id}" data-name="${ins.nombre}" data-price="${ins.precio}" data-stock="${ins.stock}">${ins.nombre} (Stock: ${ins.stock})</option>`;
+            select.innerHTML += `<option value="${doc.id}" data-name="${esc(ins.nombre)}" data-price="${ins.precio}" data-stock="${ins.stock}">${esc(ins.nombre)} (Stock: ${ins.stock})</option>`;
         });
     });
 }
 
 function updateServicePrice() {
     const select = document.getElementById('posService');
-    const price = parseFloat(select.options[select.selectedIndex].dataset.price) || 0;
-    document.getElementById('servicePrice').innerHTML = `<i class="fas fa-tag"></i> Precio: ${formatCOP(price)}`;
+    const unitPrice = parseFloat(select.options[select.selectedIndex]?.dataset.price) || 0;
+    const cantidad = parseInt(document.getElementById('posServiceCantidad').value) || 1;
+    const total = unitPrice * cantidad;
+    const label = cantidad > 1
+        ? `<i class="fas fa-tag"></i> Precio unitario: ${formatCOP(unitPrice)} × ${cantidad} = ${formatCOP(total)}`
+        : `<i class="fas fa-tag"></i> Precio: ${formatCOP(unitPrice)}`;
+    document.getElementById('servicePrice').innerHTML = label;
     calculateSummary();
 }
 
@@ -362,15 +449,15 @@ function loadAdminData() {
                             <i class="fas fa-wrench"></i>
                         </div>
                         <div class="list-item-text">
-                            <h4>${serv.nombre}</h4>
-                            <p>$${serv.precio.toLocaleString()}</p>
+                            <h4>${esc(serv.nombre)}</h4>
+                            <p>${serv.precio.toLocaleString()}</p>
                         </div>
                     </div>
                     <div class="list-item-actions">
-                        <button class="btn btn-warning btn-sm" onclick="editService('${doc.id}', '${serv.nombre}', ${serv.precio})">
+                        <button class="btn btn-warning btn-sm" onclick="editService('${esc(doc.id)}', '${esc(serv.nombre)}', ${serv.precio})">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteService('${doc.id}')">
+                        <button class="btn btn-danger btn-sm" onclick="deleteService('${esc(doc.id)}')">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -396,15 +483,15 @@ function loadAdminData() {
                             <i class="fas fa-user"></i>
                         </div>
                         <div class="list-item-text">
-                            <h4>${emp.nombre}</h4>
+                            <h4>${esc(emp.nombre)}</h4>
                             <p>Comisión: ${emp.comision}%</p>
                         </div>
                     </div>
                     <div class="list-item-actions">
-                        <button class="btn btn-warning btn-sm" onclick="editEmployee('${doc.id}', '${emp.nombre}', ${emp.comision})">
+                        <button class="btn btn-warning btn-sm" onclick="editEmployee('${esc(doc.id)}', '${esc(emp.nombre)}', ${emp.comision})">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteEmployee('${doc.id}')">
+                        <button class="btn btn-danger btn-sm" onclick="deleteEmployee('${esc(doc.id)}')">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -423,25 +510,28 @@ function loadAdminData() {
         list.innerHTML = '';
         snap.forEach(doc => {
             const ins = doc.data();
-            const stockClass = ins.stock < 10 ? 'badge-warning' : 'badge-success';
+            const stockClass = ins.stock < (ins.stockMinimo ?? 10) ? 'badge-warning' : 'badge-success';
             list.innerHTML += `
-                <div class="list-item">
+                <div class="list-item list-item-clickable" onclick="showInsumoDetail('${esc(doc.id)}', '${esc(ins.nombre)}', '${esc(ins.categoria)}', ${ins.precio}, ${ins.stock}, '${esc(ins.imagenUrl || '')}', ${ins.stockMinimo ?? 10})">
                     <div class="list-item-info">
                         <div class="list-item-icon">
-                            <i class="fas fa-box"></i>
+                            ${ins.imagenUrl
+                                ? `<img src="${esc(ins.imagenUrl)}" alt="${esc(ins.nombre)}" class="insumo-thumb" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                                : ''}
+                            <i class="fas fa-box" ${ins.imagenUrl ? 'style="display:none"' : ''}></i>
                         </div>
                         <div class="list-item-text">
-                            <h4>${ins.nombre}</h4>
-                            <p>${ins.categoria} - $${ins.precio.toLocaleString()}</p>
+                            <h4>${esc(ins.nombre)}</h4>
+                            <p>${esc(ins.categoria)} - ${ins.precio.toLocaleString()}</p>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 15px;" onclick="event.stopPropagation()">
                         <span class="badge ${stockClass}">Stock: ${ins.stock}</span>
                         <div class="list-item-actions">
-                            <button class="btn btn-warning btn-sm" onclick="editInsumo('${doc.id}', '${ins.nombre}', '${ins.categoria}', ${ins.precio}, ${ins.stock})">
+                            <button class="btn btn-warning btn-sm" onclick="editInsumo('${esc(doc.id)}', '${esc(ins.nombre)}', '${esc(ins.categoria)}', ${ins.precio}, ${ins.stock}, '${esc(ins.imagenUrl || '')}', ${ins.stockMinimo ?? 10})">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteInsumo('${doc.id}')">
+                            <button class="btn btn-danger btn-sm" onclick="deleteInsumo('${esc(doc.id)}')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -583,90 +673,43 @@ function addInsumo() {
     const categoria = document.getElementById('insumoCategory').value.trim();
     const precio = parseInt(document.getElementById('insumoPrice').value);
     const stock = parseInt(document.getElementById('insumoStock').value);
-    const file = document.getElementById('insumoImage').files[0];
-    
+    const stockMinimo = parseInt(document.getElementById('insumoStockMinimo').value) || 10;
+    const imagenUrl = document.getElementById('insumoImage').value.trim();
+
     if (name && categoria && precio && stock) {
-        if (file) {
-            const storageRef = storage.ref(`insumos/${Date.now()}_${file.name}`);
-            storageRef.put(file).then(snapshot => {
-                snapshot.ref.getDownloadURL().then(url => {
-                    db.collection('insumos').add({
-                        nombre: name,
-                        categoria: categoria,
-                        precio: precio,
-                        stock: stock,
-                        imagenUrl: url
-                    }).then(() => { 
-                        loadAdminData(); 
-                        clearInsumoForm();
-                        showToast('Insumo agregado correctamente');
-                    });
-                });
-            });
-        } else {
-            db.collection('insumos').add({
-                nombre: name,
-                categoria: categoria,
-                precio: precio,
-                stock: stock,
-                imagenUrl: ''
-            }).then(() => { 
-                loadAdminData(); 
-                clearInsumoForm();
-                showToast('Insumo agregado correctamente');
-            });
-        }
+        db.collection('insumos').add({ nombre: name, categoria, precio, stock, stockMinimo, imagenUrl })
+            .then(() => { loadAdminData(); clearInsumoForm(); showToast('Insumo agregado correctamente'); })
+            .catch(err => showToast('Error: ' + err, 'error'));
     } else {
         showToast('Completa todos los campos obligatorios', 'error');
     }
 }
 
-function editInsumo(id, name, categoria, precio, stock) {
+function editInsumo(id, name, categoria, precio, stock, imagenUrl, stockMinimo) {
     if (!requireAdminOrToast()) return;
     document.getElementById('insumoName').value = name;
     document.getElementById('insumoCategory').value = categoria;
     document.getElementById('insumoPrice').value = precio;
     document.getElementById('insumoStock').value = stock;
-    
+    document.getElementById('insumoStockMinimo').value = stockMinimo ?? 10;
+    document.getElementById('insumoImage').value = imagenUrl || '';
+
     document.querySelector('#insumosSection .card').scrollIntoView({ behavior: 'smooth' });
-    
+
     const saveBtn = document.querySelector('#insumosSection .btn-success');
     saveBtn.innerHTML = '<i class="fas fa-edit"></i> Actualizar Insumo';
     saveBtn.onclick = () => {
-        const newName = document.getElementById('insumoName').value.trim();
-        const newCat = document.getElementById('insumoCategory').value.trim();
-        const newPrice = parseInt(document.getElementById('insumoPrice').value);
-        const newStock = parseInt(document.getElementById('insumoStock').value);
-        const file = document.getElementById('insumoImage').files[0];
-
         const updateData = {
-            nombre: newName,
-            categoria: newCat,
-            precio: newPrice,
-            stock: newStock
+            nombre: document.getElementById('insumoName').value.trim(),
+            categoria: document.getElementById('insumoCategory').value.trim(),
+            precio: parseInt(document.getElementById('insumoPrice').value),
+            stock: parseInt(document.getElementById('insumoStock').value),
+            stockMinimo: parseInt(document.getElementById('insumoStockMinimo').value) || 10,
+            imagenUrl: document.getElementById('insumoImage').value.trim()
         };
-
-        if (file) {
-            const storageRef = storage.ref(`insumos/${Date.now()}_${file.name}`);
-            storageRef.put(file).then(snapshot => {
-                snapshot.ref.getDownloadURL().then(url => {
-                    updateData.imagenUrl = url;
-                    db.collection('insumos').doc(id).update(updateData)
-                        .then(() => { 
-                            loadAdminData(); 
-                            clearInsumoForm();
-                            showToast('Insumo actualizado correctamente');
-                        });
-                });
-            });
-        } else {
-            db.collection('insumos').doc(id).update(updateData)
-                .then(() => { 
-                    loadAdminData(); 
-                    clearInsumoForm();
-                    showToast('Insumo actualizado correctamente');
-                });
-        }
+        db.collection('insumos').doc(id).update(updateData)
+            .then(() => { loadAdminData(); clearInsumoForm(); showToast('Insumo actualizado correctamente'); })
+            .catch(err => showToast('Error: ' + err, 'error'));
     };
 }
 
@@ -680,11 +723,53 @@ function deleteInsumo(id) {
     }
 }
 
+function showInsumoDetail(id, nombre, categoria, precio, stock, imagenUrl, stockMinimo) {
+    const min = stockMinimo ?? 10;
+    const stockClass = stock < min ? 'badge-warning' : 'badge-success';
+    const existing = document.getElementById('insumoDetailModal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'insumoDetailModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-box" style="max-width:420px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-box"></i> Detalle del Insumo</h3>
+                <button class="modal-close" onclick="document.getElementById('insumoDetailModal').remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+                ${imagenUrl
+                    ? `<img src="${esc(imagenUrl)}" alt="${esc(nombre)}" style="width:100%;max-height:260px;object-fit:contain;border-radius:var(--radius-sm);margin-bottom:16px;background:#f5f5f5;" onerror="this.style.display='none'">`
+                    : `<div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;background:#f5f5f5;border-radius:var(--radius-sm);margin-bottom:16px;"><i class="fas fa-box" style="font-size:3rem;color:#ccc;"></i></div>`
+                }
+                <h2 style="margin-bottom:6px;">${esc(nombre)}</h2>
+                <p style="color:var(--gray);margin-bottom:16px;">${esc(categoria)}</p>
+                <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">
+                    <div style="text-align:center;">
+                        <div style="font-size:1.4rem;font-weight:700;color:var(--primary);">${formatCOP(precio)}</div>
+                        <div style="font-size:0.8rem;color:var(--gray);">Precio</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <span class="badge ${stockClass}" style="font-size:1rem;padding:6px 14px;">${stock}</span>
+                        <div style="font-size:0.8rem;color:var(--gray);margin-top:4px;">Stock</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+}
+
 function clearInsumoForm() {
     document.getElementById('insumoName').value = '';
     document.getElementById('insumoCategory').value = '';
     document.getElementById('insumoPrice').value = '';
     document.getElementById('insumoStock').value = '';
+    document.getElementById('insumoStockMinimo').value = '';
     document.getElementById('insumoImage').value = '';
     const saveBtn = document.querySelector('#insumosSection .btn-success');
     saveBtn.innerHTML = '<i class="fas fa-save"></i> Guardar Insumo';
@@ -728,7 +813,7 @@ function renderSelectedInsumos() {
         container.innerHTML += `
             <div class="insumo-tag">
                 <i class="fas fa-box"></i>
-                ${ins.nombre} - ${formatCOP(ins.precio)}
+                ${esc(ins.nombre)} - ${formatCOP(ins.precio)}
                 <button onclick="removeInsumo(${idx})"><i class="fas fa-times"></i></button>
             </div>
         `;
@@ -744,7 +829,9 @@ function removeInsumo(index) {
 function calculateSummary() {
     const serviceSelect = document.getElementById('posService');
     const employeeSelect = document.getElementById('posEmployee');
-    const servicePrice = parseFloat(serviceSelect.options[serviceSelect.selectedIndex]?.dataset.price) || 0;
+    const unitPrice = parseFloat(serviceSelect.options[serviceSelect.selectedIndex]?.dataset.price) || 0;
+    const cantidad = parseInt(document.getElementById('posServiceCantidad').value) || 1;
+    const servicePrice = unitPrice * cantidad;
     const commissionPercent = parseFloat(employeeSelect.options[employeeSelect.selectedIndex]?.dataset.commission) || 0;
     const insumosTotal = selectedInsumos.reduce((total, ins) => total + ins.precio, 0);
     const commission = Math.round((servicePrice * commissionPercent) / 100);
@@ -761,7 +848,9 @@ function saveService() {
     const serviceId = document.getElementById('posService').value;
     const employeeId = document.getElementById('posEmployee').value;
     const employeeName = document.getElementById('posEmployee').options[document.getElementById('posEmployee').selectedIndex]?.text || '';
-    const serviceName = document.getElementById('posService').options[document.getElementById('posService').selectedIndex]?.text || '';
+    const serviceBaseName = document.getElementById('posService').options[document.getElementById('posService').selectedIndex]?.text || '';
+    const cantidad = parseInt(document.getElementById('posServiceCantidad').value) || 1;
+    const serviceName = cantidad > 1 ? `${serviceBaseName} x${cantidad}` : serviceBaseName;
     const client = document.getElementById('posClient').value;
     const servicePrice = parseFloat(document.getElementById('summaryServiceTotal').textContent.replace(/[^0-9,]/g, '').replace(/,/g, '.'));
     const insumosTotal = parseFloat(document.getElementById('summaryInsumosTotal').textContent.replace(/[^0-9,]/g, '').replace(/,/g, '.'));
@@ -800,6 +889,7 @@ function saveService() {
             document.getElementById('posClient').value = '';
             document.getElementById('posService').selectedIndex = 0;
             document.getElementById('posEmployee').selectedIndex = 0;
+            document.getElementById('posServiceCantidad').value = 1;
             renderSelectedInsumos();
             calculateSummary();
             document.getElementById('servicePrice').innerHTML = '<i class="fas fa-tag"></i> Precio: $0';
@@ -813,74 +903,61 @@ function saveService() {
 }
 
 function generateInvoicePreview(id, date, time, client, serviceName, servicePrice, insumosTotal, total) {
+    _invoiceCtx = { id, date, time, client, serviceName, servicePrice, insumosTotal, total };
     const preview = document.getElementById('invoicePreview');
     preview.innerHTML = `
-        <div class="invoice-preview">
-            <div class="invoice-header">
-                <h3><i class="fas fa-tire"></i> Montallantas Los Castellanos</h3>
-                <p>Factura de Servicio</p>
+        <div id="ticketServicio" class="ticket">
+            <div class="ticket-logo-row">
+                <img src="assets/branding/logo-header.png" alt="Logo" class="ticket-logo">
             </div>
-            <div style="margin-bottom: 15px;">
-                <p><strong>Número:</strong> ${id.substring(0, 8).toUpperCase()}</p>
-                <p><strong>Fecha:</strong> ${date} - ${time}</p>
-                <p><strong>Cliente:</strong> ${client || 'Sin nombre'}</p>
-                <p><strong>Servicio:</strong> ${serviceName}</p>
-            </div>
-            <hr style="border: 1px solid var(--light); margin: 15px 0;">
-            <div style="margin-bottom: 15px;">
-                <p>Servicio: <strong>${formatCOP(servicePrice)}</strong></p>
-                <p>Insumos: <strong>${formatCOP(insumosTotal)}</strong></p>
-            </div>
-            <hr style="border: 1px solid var(--light); margin: 15px 0;">
-            <p style="font-size: 1.2rem; color: var(--primary);"><strong>TOTAL A PAGAR: ${formatCOP(total)}</strong></p>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-primary" style="flex: 1;" onclick="printInvoice()">
-                    <i class="fas fa-print"></i> Imprimir
-                </button>
-                <button class="btn btn-success" style="flex: 1;" onclick="sendInvoiceWhatsApp('${id}', '${date}', '${time}', '${client}', '${serviceName}', ${servicePrice}, ${insumosTotal}, ${total})">
-                    <i class="fab fa-whatsapp"></i> WhatsApp
-                </button>
-            </div>
+            <div class="ticket-title">FACTURA DE SERVICIO</div>
+            <div class="ticket-divider">- - - - - - - - - - - - - - - - - -</div>
+            <div class="ticket-row"><span>N°</span><span>${id.substring(0, 8).toUpperCase()}</span></div>
+            <div class="ticket-row"><span>Fecha</span><span>${date}</span></div>
+            <div class="ticket-row"><span>Hora</span><span>${time}</span></div>
+            <div class="ticket-row"><span>Cliente</span><span>${esc(client) || 'Sin nombre'}</span></div>
+            <div class="ticket-divider">- - - - - - - - - - - - - - - - - -</div>
+            <div class="ticket-row"><span>Servicio</span><span>${esc(serviceName)}</span></div>
+            <div class="ticket-row"><span>Valor servicio</span><span>${formatCOP(servicePrice)}</span></div>
+            <div class="ticket-row"><span>Insumos</span><span>${formatCOP(insumosTotal)}</span></div>
+            <div class="ticket-divider">= = = = = = = = = = = = = = = = = =</div>
+            <div class="ticket-total">TOTAL: ${formatCOP(total)}</div>
+            <div class="ticket-divider">- - - - - - - - - - - - - - - - - -</div>
+            <div class="ticket-footer">¡Gracias por su preferencia!</div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 12px;">
+            <button class="btn btn-primary" style="flex: 1;" onclick="printInvoice()">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+            <button class="btn btn-success" style="flex: 1;" onclick="sendInvoiceWhatsApp()">
+                <i class="fab fa-whatsapp"></i> WhatsApp
+            </button>
         </div>
     `;
 }
 
 function printInvoice() {
-    const preview = document.getElementById('invoicePreview').innerHTML;
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Factura - Montallantas Los Castellanos</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                h3 { color: #FF6B35; }
-                hr { border: 1px solid #eee; }
-            </style>
-        </head>
-        <body>${preview}</body>
-        </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    html2canvas(document.getElementById('ticketServicio'), { scale: 2, backgroundColor: '#fff' }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const win = window.open('', '_blank');
+        win.document.write(`<html><head><title>Factura</title><style>body{margin:0;display:flex;justify-content:center;align-items:flex-start;padding:20px;background:#f0f0f0;}img{max-width:400px;box-shadow:0 2px 10px rgba(0,0,0,.2);}@media print{body{background:#fff;padding:0;}img{max-width:100%;box-shadow:none;}}</style></head><body><img src="${imgData}" onload="window.print()"></body></html>`);
+        win.document.close();
+    });
 }
 
-function sendInvoiceWhatsApp(id, date, time, client, serviceName, servicePrice, insumosTotal, total) {
-    const invoiceNumber = id.substring(0, 8).toUpperCase();
-    const message = `*Factura - Montallantas Los Castellanos*\n\n` +
-        `*Número:* ${invoiceNumber}\n` +
-        `*Fecha:* ${date} - ${time}\n` +
-        `*Cliente:* ${client || 'Sin nombre'}\n` +
-        `*Servicio:* ${serviceName}\n\n` +
-        `*Detalle:*\n` +
-        `Servicio: ${formatCOP(servicePrice)}\n` +
-        `Insumos: ${formatCOP(insumosTotal)}\n\n` +
-        `*TOTAL A PAGAR: ${formatCOP(total)}*\n\n` +
-        `¡Gracias por su preferencia!`;
-    
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+function sendInvoiceWhatsApp() {
+    html2canvas(document.getElementById('ticketServicio'), { scale: 2, backgroundColor: '#fff' }).then(canvas => {
+        canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `factura-${_invoiceCtx.id.substring(0, 8).toUpperCase()}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setTimeout(() => window.open('https://web.whatsapp.com', '_blank'), 800);
+            showToast('Imagen descargada. Adjúntala en WhatsApp.', 'success');
+        }, 'image/png');
+    });
 }
 
 // ============================================
@@ -895,7 +972,7 @@ function loadVentaInsumosData() {
         select.innerHTML = '<option value="">Seleccionar insumo...</option>';
         snap.forEach(doc => {
             const ins = doc.data();
-            select.innerHTML += `<option value="${doc.id}" data-name="${ins.nombre}" data-price="${ins.precio}" data-stock="${ins.stock}">${ins.nombre} (Stock: ${ins.stock})</option>`;
+            select.innerHTML += `<option value="${doc.id}" data-name="${esc(ins.nombre)}" data-price="${ins.precio}" data-stock="${ins.stock}">${esc(ins.nombre)} (Stock: ${ins.stock})</option>`;
         });
     });
 }
@@ -949,7 +1026,7 @@ function renderVentaSelectedInsumos() {
         container.innerHTML += `
             <div class="insumo-tag">
                 <i class="fas fa-box"></i>
-                ${ins.nombre} x${ins.cantidad} - ${formatCOP(subtotal)}
+                ${esc(ins.nombre)} x${ins.cantidad} - ${formatCOP(subtotal)}
                 <button onclick="removeVentaInsumo(${idx})"><i class="fas fa-times"></i></button>
             </div>
         `;
@@ -1011,70 +1088,62 @@ function saveVentaInsumos() {
 }
 
 function generateVentaInvoicePreview(id, date, time, client, total) {
+    _ventaInvoiceCtx = { id, date, time, client, total };
     const preview = document.getElementById('ventaInvoicePreview');
+    const insumosRows = ventaSelectedInsumos.map(ins =>
+        `<div class="ticket-row"><span>${esc(ins.nombre)} x${ins.cantidad}</span><span>${formatCOP(ins.precio * ins.cantidad)}</span></div>`
+    ).join('');
     preview.innerHTML = `
-        <div class="invoice-preview">
-            <div class="invoice-header">
-                <h3><i class="fas fa-tire"></i> Montallantas Los Castellanos</h3>
-                <p>Factura de Venta de Insumos</p>
+        <div id="ticketVenta" class="ticket">
+            <div class="ticket-logo-row">
+                <img src="assets/branding/logo-header.png" alt="Logo" class="ticket-logo">
             </div>
-            <div style="margin-bottom: 15px;">
-                <p><strong>Número:</strong> ${id.substring(0, 8).toUpperCase()}</p>
-                <p><strong>Fecha:</strong> ${date} - ${time}</p>
-                <p><strong>Cliente:</strong> ${client || 'Sin nombre'}</p>
-            </div>
-            <hr style="border: 1px solid var(--light); margin: 15px 0;">
-            <div style="margin-bottom: 15px;">
-                ${ventaSelectedInsumos.map(ins => `<p>${ins.nombre}: <strong>${formatCOP(ins.precio)}</strong></p>`).join('')}
-            </div>
-            <hr style="border: 1px solid var(--light); margin: 15px 0;">
-            <p style="font-size: 1.2rem; color: var(--primary);"><strong>TOTAL A PAGAR: ${total.toLocaleString()}</strong></p>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-primary" style="flex: 1;" onclick="printVentaInvoice()">
-                    <i class="fas fa-print"></i> Imprimir
-                </button>
-                <button class="btn btn-success" style="flex: 1;" onclick="sendVentaInvoiceWhatsApp('${id}', '${date}', '${time}', '${client}', ${total})">
-                    <i class="fab fa-whatsapp"></i> WhatsApp
-                </button>
-            </div>
+            <div class="ticket-title">VENTA DE INSUMOS</div>
+            <div class="ticket-divider">- - - - - - - - - - - - - - - - - -</div>
+            <div class="ticket-row"><span>N°</span><span>${id.substring(0, 8).toUpperCase()}</span></div>
+            <div class="ticket-row"><span>Fecha</span><span>${date}</span></div>
+            <div class="ticket-row"><span>Hora</span><span>${time}</span></div>
+            <div class="ticket-row"><span>Cliente</span><span>${esc(client) || 'Sin nombre'}</span></div>
+            <div class="ticket-divider">- - - - - - - - - - - - - - - - - -</div>
+            ${insumosRows}
+            <div class="ticket-divider">= = = = = = = = = = = = = = = = = =</div>
+            <div class="ticket-total">TOTAL: ${formatCOP(total)}</div>
+            <div class="ticket-divider">- - - - - - - - - - - - - - - - - -</div>
+            <div class="ticket-footer">¡Gracias por su preferencia!</div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 12px;">
+            <button class="btn btn-primary" style="flex: 1;" onclick="printVentaInvoice()">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+            <button class="btn btn-success" style="flex: 1;" onclick="sendVentaInvoiceWhatsApp()">
+                <i class="fab fa-whatsapp"></i> WhatsApp
+            </button>
         </div>
     `;
 }
 
 function printVentaInvoice() {
-    const preview = document.getElementById('ventaInvoicePreview').innerHTML;
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Factura - Montallantas Los Castellanos</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                h3 { color: #FF6B35; }
-                hr { border: 1px solid #eee; }
-            </style>
-        </head>
-        <body>${preview}</body>
-        </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    html2canvas(document.getElementById('ticketVenta'), { scale: 2, backgroundColor: '#fff' }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const win = window.open('', '_blank');
+        win.document.write(`<html><head><title>Factura</title><style>body{margin:0;display:flex;justify-content:center;align-items:flex-start;padding:20px;background:#f0f0f0;}img{max-width:400px;box-shadow:0 2px 10px rgba(0,0,0,.2);}@media print{body{background:#fff;padding:0;}img{max-width:100%;box-shadow:none;}}</style></head><body><img src="${imgData}" onload="window.print()"></body></html>`);
+        win.document.close();
+    });
 }
 
-function sendVentaInvoiceWhatsApp(id, date, time, client, total) {
-    const invoiceNumber = id.substring(0, 8).toUpperCase();
-    const message = `*Factura - Montallantas Los Castellanos*\n\n` +
-        `*Número:* ${invoiceNumber}\n` +
-        `*Fecha:* ${date} - ${time}\n` +
-        `*Cliente:* ${client || 'Sin nombre'}\n\n` +
-        `*Detalle de Insumos:*\n` +
-        ventaSelectedInsumos.map(ins => `${ins.nombre} x${ins.cantidad}: ${formatCOP(ins.precio * ins.cantidad)}`).join('\n') +
-        `\n\n*TOTAL A PAGAR: ${formatCOP(total)}*\n\n` +
-        `¡Gracias por su preferencia!`;
-    
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+function sendVentaInvoiceWhatsApp() {
+    html2canvas(document.getElementById('ticketVenta'), { scale: 2, backgroundColor: '#fff' }).then(canvas => {
+        canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `factura-${_ventaInvoiceCtx.id.substring(0, 8).toUpperCase()}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setTimeout(() => window.open('https://web.whatsapp.com', '_blank'), 800);
+            showToast('Imagen descargada. Adjúntala en WhatsApp.', 'success');
+        }, 'image/png');
+    });
 }
 
 // ============================================
@@ -1131,10 +1200,10 @@ function generateReport() {
 
                 tbody.innerHTML += `
                     <tr>
-                        <td>${data.hora}</td>
-                        <td>${data.cliente}</td>
-                        <td>${data.empleado_nombre || data.empleadoNombre || data.empleado_id || data.empleadoId}</td>
-                        <td>${data.servicio_nombre || data.servicioNombre || data.servicio_id || data.servicioId}</td>
+                        <td>${esc(data.hora)}</td>
+                        <td>${esc(data.cliente)}</td>
+                        <td>${esc(data.empleado_nombre || data.empleadoNombre || data.empleado_id || data.empleadoId)}</td>
+                        <td>${esc(data.servicio_nombre || data.servicioNombre || data.servicio_id || data.servicioId)}</td>
                         <td><strong>${formatCOP(data.total_cobrado || data.totalCobrado)}</strong></td>
                         <td>
                             <button class="btn btn-warning btn-sm" onclick="editServicioRealizado('${doc.id}')">
@@ -1214,7 +1283,8 @@ function deleteServicioRealizado(id) {
             if (doc.exists) {
                 const data = doc.data();
                 // Restaurar stock de insumos
-                const insumosUtilizados = data.insumos_utilizados || data.insumosUtilizados || [];
+                const raw = data.insumos_utilizados || data.insumosUtilizados || [];
+                const insumosUtilizados = typeof raw === 'string' ? JSON.parse(raw) : raw;
                 if (insumosUtilizados.length > 0) {
                     insumosUtilizados.forEach(ins => {
                         db.collection('insumos').doc(ins.id).update({
@@ -1253,7 +1323,7 @@ function editServicioRealizado(id) {
                     <form id="editServiceForm" class="login-form">
                         <div class="form-group">
                             <label><i class="fas fa-user"></i> Cliente</label>
-                            <input type="text" id="editClient" class="form-control" value="${data.cliente || ''}">
+                            <input type="text" id="editClient" class="form-control" value="${esc(data.cliente || '')}">
                         </div>
                         <div class="form-group">
                             <label><i class="fas fa-dollar-sign"></i> Precio Servicio</label>
@@ -1406,7 +1476,7 @@ function showEmployeeEarnings() {
                                 <i class="fas fa-user"></i>
                             </div>
                             <div class="list-item-text">
-                                <h4>${emp.nombre}</h4>
+                                <h4>${esc(emp.nombre)}</h4>
                                 <p>Servicios realizados: ${emp.serviciosRealizados}</p>
                             </div>
                         </div>
@@ -1483,12 +1553,12 @@ function loadHistorialVentasInsumos() {
         snap.forEach(doc => {
             const data = doc.data();
             const insumos = JSON.parse(data.insumos_vendidos || '[]');
-            const insumosText = insumos.map(i => `${i.nombre} x${i.cantidad}`).join(', ');
+            const insumosText = insumos.map(i => `${esc(i.nombre)} x${i.cantidad}`).join(', ');
             html += `
                 <tr>
-                    <td>${data.hora}</td>
-                    <td>${data.cliente}</td>
-                    <td>${insumosText}</td>
+                    <td>${esc(data.hora)}</td>
+                    <td>${esc(data.cliente)}</td>
+                    <td>${esc(insumosText)}</td>
                     <td>${formatCOP(data.total_cobrado)}</td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="editVentaInsumo('${doc.id}')"><i class="fas fa-edit"></i></button>
@@ -1635,7 +1705,7 @@ function loadPrestamosData() {
         select.innerHTML = '<option value="">Seleccionar empleado...</option>';
         snap.forEach(doc => {
             const emp = doc.data();
-            select.innerHTML += `<option value="${doc.id}" data-name="${emp.nombre}">${emp.nombre}</option>`;
+            select.innerHTML += `<option value="${doc.id}" data-name="${esc(emp.nombre)}">${esc(emp.nombre)}</option>`;
         });
     });
 

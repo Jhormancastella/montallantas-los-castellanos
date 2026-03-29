@@ -88,6 +88,10 @@
                 normalized.imagenUrl = normalized.imagen_url;
                 delete normalized.imagen_url;
             }
+            if ("stock_minimo" in normalized) {
+                normalized.stockMinimo = normalized.stock_minimo ?? 10;
+                delete normalized.stock_minimo;
+            }
             if ("servicio_id" in normalized) {
                 normalized.servicioId = normalized.servicio_id;
                 delete normalized.servicio_id;
@@ -135,6 +139,10 @@
             if ("imagenUrl" in serialized) {
                 serialized.imagen_url = serialized.imagenUrl;
                 delete serialized.imagenUrl;
+            }
+            if ("stockMinimo" in serialized) {
+                serialized.stock_minimo = serialized.stockMinimo;
+                delete serialized.stockMinimo;
             }
             if ("servicioId" in serialized) {
                 serialized.servicio_id = serialized.servicioId;

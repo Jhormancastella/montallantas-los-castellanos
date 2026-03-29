@@ -21,6 +21,7 @@
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -245,9 +246,12 @@
 
                             <div class="form-group">
                                 <label><i class="fas fa-wrench"></i> Servicio</label>
-                                <select id="posService" class="form-control" onchange="updateServicePrice()">
-                                    <option value="">Seleccionar servicio...</option>
-                                </select>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <select id="posService" class="form-control" style="flex: 1;" onchange="updateServicePrice()">
+                                        <option value="">Seleccionar servicio...</option>
+                                    </select>
+                                    <input type="number" id="posServiceCantidad" class="form-control" style="width: 80px;" placeholder="Cant." min="1" value="1" oninput="updateServicePrice()">
+                                </div>
                                 <div class="price-display" id="servicePrice">
                                     <i class="fas fa-tag"></i> Precio: $0
                                 </div>
@@ -414,16 +418,14 @@
                                 <label><i class="fas fa-cubes"></i> Cantidad en Stock</label>
                                 <input type="number" id="insumoStock" class="form-control" placeholder="Cantidad">
                             </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-exclamation-triangle"></i> Stock mínimo (alerta de bajo stock)</label>
+                                <input type="number" id="insumoStockMinimo" class="form-control" placeholder="Ej: 2 para llantas, 20 para parches" min="0">
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label><i class="fas fa-image"></i> Imagen del Insumo</label>
-                            <div class="file-input-wrapper">
-                                <div class="file-input-label">
-                                    <i class="fas fa-cloud-upload-alt"></i>
-                                    <span>Seleccionar imagen...</span>
-                                </div>
-                                <input type="file" id="insumoImage" accept="image/*">
-                            </div>
+                            <label><i class="fas fa-image"></i> URL de imagen (Opcional)</label>
+                            <input type="url" id="insumoImage" class="form-control" placeholder="https://ejemplo.com/imagen.jpg">
                         </div>
                         <button class="btn btn-success" onclick="addInsumo()">
                             <i class="fas fa-save"></i> Guardar Insumo
