@@ -41,10 +41,10 @@
             </div>
         </div>
         <nav class="nav-menu">
-            <div class="nav-item">
+            <div class="nav-item" id="loginNavItem">
                 <a class="nav-link" onclick="showLoginModal()" id="adminLoginBtn">
-                    <i class="fas fa-user-shield"></i>
-                    <span>AD</span>
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Iniciar Sesión</span>
                 </a>
             </div>
             <div class="nav-item">
@@ -54,48 +54,54 @@
                 </a>
             </div>
             <div class="nav-item">
+                <a class="nav-link" onclick="showSection('catalogoSection')">
+                    <i class="fas fa-store"></i>
+                    <span>Catálogo</span>
+                </a>
+            </div>
+            <div class="nav-item admin-only" style="display:none">
                 <a class="nav-link" onclick="showSection('posSection')">
                     <i class="fas fa-cash-register"></i>
                     <span>Registrar Servicio</span>
                 </a>
             </div>
-            <div class="nav-item">
+            <div class="nav-item admin-only" style="display:none">
                 <a class="nav-link" onclick="showSection('servicesSection')">
                     <i class="fas fa-tools"></i>
                     <span>Gestión Servicios</span>
                 </a>
             </div>
-            <div class="nav-item">
+            <div class="nav-item admin-only" style="display:none">
                 <a class="nav-link" onclick="showSection('employeesSection')">
                     <i class="fas fa-users"></i>
                     <span>Empleados</span>
                 </a>
             </div>
-            <div class="nav-item">
+            <div class="nav-item admin-only" style="display:none">
                 <a class="nav-link" onclick="showSection('insumosSection')">
                     <i class="fas fa-boxes"></i>
                     <span>Inventario</span>
                 </a>
             </div>
-            <div class="nav-item">
+            <div class="nav-item admin-only" style="display:none">
                 <a class="nav-link" onclick="showSection('ventaInsumosSection')">
                     <i class="fas fa-shopping-cart"></i>
                     <span>Venta Insumos</span>
                 </a>
             </div>
-            <div class="nav-item">
+            <div class="nav-item admin-only" style="display:none">
                 <a class="nav-link" onclick="showSection('historialVentasInsumosSection')">
                     <i class="fas fa-history"></i>
                     <span>Historial Ventas</span>
                 </a>
             </div>
-            <div class="nav-item">
+            <div class="nav-item admin-only" style="display:none">
                 <a class="nav-link" onclick="showSection('prestamosSection')">
                     <i class="fas fa-hand-holding-usd"></i>
                     <span>Préstamos</span>
                 </a>
             </div>
-            <div class="nav-item">
+            <div class="nav-item admin-only" style="display:none">
                 <a class="nav-link" onclick="showSection('reportsSection')">
                     <i class="fas fa-chart-bar"></i>
                     <span>Reportes</span>
@@ -124,9 +130,26 @@
                     <i class="fas fa-calendar-alt"></i>
                     <span id="currentDate"></span>
                 </div>
-                <div class="user-info hidden" id="userInfoContainer">
-                    <div class="user-avatar" id="userAvatar">LC</div>
-                    <span id="userName">Admin</span>
+                <div class="user-info hidden" id="userInfoContainer" style="position:relative;">
+                    <div class="user-avatar" id="userAvatar" onclick="toggleUserMenu()" style="cursor:pointer;" title="Opciones de cuenta">LC</div>
+                    <!-- Dropdown -->
+                    <div id="userDropdown" style="
+                        display:none; position:fixed; right:12px; top:68px;
+                        background:white; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.18);
+                        min-width:200px; z-index:9999; overflow:hidden;">
+                        <div style="padding:14px 16px; border-bottom:1px solid #f0f0f0;">
+                            <div style="font-size:0.75rem; color:var(--gray);">Sesión iniciada como</div>
+                            <div id="userName" style="font-size:0.85rem; font-weight:600; color:var(--secondary); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px;">Admin</div>
+                        </div>
+                        <button onclick="logout()" style="
+                            width:100%; border:none; background:none; padding:12px 16px;
+                            text-align:left; cursor:pointer; font-family:'Poppins',sans-serif;
+                            font-size:0.85rem; color:var(--danger); display:flex; align-items:center; gap:8px;
+                            transition:background 0.15s;"
+                            onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='none'">
+                            <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -142,7 +165,7 @@
 
                 <!-- Stats Cards -->
                 <div class="stats-grid">
-                    <div class="stat-card primary">
+                    <div class="stat-card primary dashboard-admin-only" style="display:none">
                         <div class="stat-icon">
                             <i class="fas fa-dollar-sign"></i>
                         </div>
@@ -152,7 +175,7 @@
                             <i class="fas fa-arrow-up"></i> +15% vs ayer
                         </span>
                     </div>
-                    <div class="stat-card success">
+                    <div class="stat-card success dashboard-admin-only" style="display:none">
                         <div class="stat-icon">
                             <i class="fas fa-wrench"></i>
                         </div>
@@ -162,7 +185,7 @@
                             <i class="fas fa-arrow-up"></i> +8 servicios
                         </span>
                     </div>
-                    <div class="stat-card warning">
+                    <div class="stat-card warning dashboard-admin-only" style="display:none">
                         <div class="stat-icon">
                             <i class="fas fa-users"></i>
                         </div>
@@ -172,7 +195,7 @@
                             <i class="fas fa-check-circle"></i> Todos presentes
                         </span>
                     </div>
-                    <div class="stat-card info">
+                    <div class="stat-card info dashboard-admin-only" style="display:none">
                         <div class="stat-icon">
                             <i class="fas fa-box"></i>
                         </div>
@@ -185,10 +208,10 @@
                 </div>
 
                 <!-- Quick Actions -->
-                <h2 style="margin-bottom: 20px; color: var(--secondary);">
+                <h2 class="dashboard-admin-only" style="display:none; margin-bottom: 20px; color: var(--secondary);">
                     <i class="fas fa-bolt" style="color: var(--primary);"></i> Acciones Rápidas
                 </h2>
-                <div class="quick-actions">
+                <div class="quick-actions dashboard-admin-only" style="display:none">
                     <div class="quick-action" onclick="showSection('posSection')">
                         <i class="fas fa-plus-circle"></i>
                         <span>Nuevo Servicio</span>
@@ -208,7 +231,7 @@
                 </div>
 
                 <!-- Recent Activity -->
-                <div class="card">
+                <div class="card dashboard-admin-only" style="display:none">
                     <div class="card-header">
                         <h2><i class="fas fa-history"></i> Actividad Reciente</h2>
                         <button class="btn btn-outline btn-sm" onclick="showSection('reportsSection')">
@@ -221,6 +244,137 @@
                             <p>No hay actividad reciente</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Bienvenida pública (solo sin sesión) -->
+                <div id="publicWelcome">
+
+                    <!-- Hero bienvenida -->
+                    <div class="card" style="text-align:center; padding: 36px 20px 28px; margin-bottom:20px;">
+                        <div style="font-size:3rem; color:var(--primary); margin-bottom:12px;">
+                            <i class="fas fa-tire"></i>
+                        </div>
+                        <h2 style="color:var(--secondary); margin-bottom:6px;">Bienvenido a Montallantas Los Castellanos</h2>
+                        <p style="color:var(--gray); margin-bottom:20px;">Expertos en montaje, alineación y mantenimiento de llantas</p>
+                        <button class="btn btn-primary" onclick="showSection('catalogoSection')" style="margin: 0 auto;">
+                            <i class="fas fa-store"></i> Ver Catálogo de Productos
+                        </button>
+                    </div>
+
+                    <!-- Mosaico de servicios -->
+                    <h2 style="margin-bottom:16px; color:var(--secondary);">
+                        <i class="fas fa-wrench" style="color:var(--primary);"></i> Nuestros Servicios
+                    </h2>
+
+                    <!-- Carrusel Coverflow -->
+                    <div style="position:relative; margin-bottom:28px; padding: 20px 0 10px;">
+
+                        <div id="coverflow" style="
+                            position: relative;
+                            height: 200px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            perspective: 1000px;
+                            overflow: hidden;
+                        ">
+                            <div class="empty-state" style="position:absolute;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Cargando servicios...</p>
+                            </div>
+                        </div>
+
+                        <!-- Controles -->
+                        <div style="display:flex; align-items:center; justify-content:center; gap:16px; margin-top:20px;">
+                            <button onclick="moverCarrusel(-1)" style="
+                                background:var(--primary); border:none; border-radius:50%;
+                                width:38px; height:38px; color:white; cursor:pointer;
+                                font-size:0.9rem; display:flex; align-items:center; justify-content:center;
+                                box-shadow: 0 4px 12px rgba(255,107,53,0.4); transition: transform 0.15s;"
+                                onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <div id="carruselDots" style="display:flex; gap:6px; align-items:center;"></div>
+                            <button onclick="moverCarrusel(1)" style="
+                                background:var(--primary); border:none; border-radius:50%;
+                                width:38px; height:38px; color:white; cursor:pointer;
+                                font-size:0.9rem; display:flex; align-items:center; justify-content:center;
+                                box-shadow: 0 4px 12px rgba(255,107,53,0.4); transition: transform 0.15s;"
+                                onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta info negocio estilo Google -->
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:8px;">
+
+                        <!-- Info de contacto -->
+                        <div class="card" style="padding:0; overflow:hidden;">
+                            <div style="background:var(--secondary); padding:16px 20px;">
+                                <h3 style="color:white; font-size:1rem; font-weight:600; margin:0;">
+                                    <i class="fas fa-store" style="color:var(--primary);"></i>
+                                    Montallantas Los Castellanos
+                                </h3>
+                                <p style="color:rgba(255,255,255,0.6); font-size:0.78rem; margin:4px 0 0;">Taller de llantas · Tibu, Norte de Santander</p>
+                            </div>
+                            <div style="padding:16px 20px; display:flex; flex-direction:column; gap:14px;">
+                                <div style="display:flex; gap:12px; align-items:flex-start;">
+                                    <i class="fas fa-map-marker-alt" style="color:var(--primary); margin-top:2px; width:16px; flex-shrink:0;"></i>
+                                    <div>
+                                        <div style="font-size:0.85rem; font-weight:500;">Dirección</div>
+                                        <div style="font-size:0.8rem; color:var(--gray);">Libertadores #5-48B10, Tibu, Norte de Santander</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:12px; align-items:flex-start;">
+                                    <i class="fas fa-clock" style="color:var(--primary); margin-top:2px; width:16px; flex-shrink:0;"></i>
+                                    <div>
+                                        <div style="font-size:0.85rem; font-weight:500;">Horario</div>
+                                        <div style="font-size:0.8rem; color:var(--gray);">Lun – Sáb: 7:00 am – 6:00 pm</div>
+                                        <div style="font-size:0.8rem; color:var(--gray);">Dom: 7:00 am – 12:00 pm</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:12px; align-items:flex-start;">
+                                    <i class="fas fa-phone" style="color:var(--primary); margin-top:2px; width:16px; flex-shrink:0;"></i>
+                                    <div>
+                                        <div style="font-size:0.85rem; font-weight:500;">Teléfono</div>
+                                        <a href="tel:+573229135021" style="font-size:0.8rem; color:var(--primary); text-decoration:none;">322 9135021</a>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:12px; align-items:flex-start;">
+                                    <i class="fab fa-whatsapp" style="color:#25D366; margin-top:2px; width:16px; flex-shrink:0;"></i>
+                                    <div>
+                                        <div style="font-size:0.85rem; font-weight:500;">WhatsApp</div>
+                                        <a href="https://wa.me/573229135021" target="_blank" style="font-size:0.8rem; color:var(--primary); text-decoration:none;">+57 322 9135021</a>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:12px; align-items:flex-start;">
+                                    <i class="fas fa-tools" style="color:var(--primary); margin-top:2px; width:16px; flex-shrink:0;"></i>
+                                    <div>
+                                        <div style="font-size:0.85rem; font-weight:500;">Servicios</div>
+                                        <div style="font-size:0.8rem; color:var(--gray);">Montaje · Alineación · Insumos</div>
+                                    </div>
+                                </div>
+                                <a href="https://www.google.com/maps/place/Montallantas+los+castellanos/@8.6362917,-72.7389688,17z/data=!4m15!1m8!3m7!1s0x8e6729364a1b96f9:0x62e018e08ec316e6!2sMontallantas+los+castellanos!8m2!3d8.6362917!4d-72.7363939!10e1!16s%2Fg%2F11k9dbvgcf!3m5!1s0x8e6729364a1b96f9:0x62e018e08ec316e6!8m2!3d8.6362917!4d-72.7363939!16s%2Fg%2F11k9dbvgcf"
+                                   target="_blank"
+                                   style="display:flex; align-items:center; gap:8px; background:#f8f9fa; border-radius:8px; padding:10px 14px; text-decoration:none; color:var(--secondary); font-size:0.82rem; font-weight:500; border:1px solid var(--border);">
+                                    <i class="fas fa-directions" style="color:var(--primary);"></i>
+                                    Cómo llegar en Google Maps
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Mapa embed -->
+                        <div class="card" style="padding:0; overflow:hidden; min-height:280px;">
+                            <iframe
+                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3963.8!2d-72.7389688!3d8.6362917!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e6729364a1b96f9%3A0x62e018e08ec316e6!2sMontallantas%20los%20castellanos!5e0!3m2!1ses!2sco!4v1711000000000"
+                                width="100%" height="100%" style="border:0; min-height:280px; display:block;"
+                                allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade">
+                            </iframe>
+                        </div>
+
+                    </div>
+
                 </div>
             </div>
 
@@ -245,16 +399,17 @@
                             </div>
 
                             <div class="form-group">
-                                <label><i class="fas fa-wrench"></i> Servicio</label>
+                                <label><i class="fas fa-wrench"></i> Servicios</label>
                                 <div style="display: flex; gap: 10px; align-items: center;">
-                                    <select id="posService" class="form-control" style="flex: 1;" onchange="updateServicePrice()">
+                                    <select id="posService" class="form-control" style="flex: 1;">
                                         <option value="">Seleccionar servicio...</option>
                                     </select>
-                                    <input type="number" id="posServiceCantidad" class="form-control" style="width: 80px;" placeholder="Cant." min="1" value="1" oninput="updateServicePrice()">
+                                    <input type="number" id="posServiceCantidad" class="form-control" style="width: 70px;" placeholder="Cant." min="1" value="1">
+                                    <button class="btn btn-primary" onclick="addServicioToList()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
                                 </div>
-                                <div class="price-display" id="servicePrice">
-                                    <i class="fas fa-tag"></i> Precio: $0
-                                </div>
+                                <div id="selectedServicios" style="margin-top:8px;"></div>
                             </div>
 
                             <div class="form-group">
@@ -281,8 +436,8 @@
                         <div class="summary-box">
                             <h3><i class="fas fa-receipt"></i> Resumen de Venta</h3>
                             <div class="summary-row">
-                                <span>Servicio:</span>
-                                <span>$<span id="summaryServiceTotal">0</span></span>
+                                <span>Servicios:</span>
+                                <span id="summaryServiceTotal">$0</span>
                             </div>
                             <div class="summary-row">
                                 <span>Insumos:</span>
@@ -588,6 +743,58 @@
                                 <p>No hay préstamos registrados hoy</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Catálogo Público Section -->
+            <div id="catalogoSection" class="section">
+                <h1 class="page-title">
+                    <i class="fas fa-store"></i>
+                    Catálogo de Productos
+                </h1>
+
+                <div class="card" style="margin-bottom: 20px;">
+                    <div class="card-body" style="padding: 14px 20px;">
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <i class="fas fa-search" style="color:var(--gray);"></i>
+                            <input type="text" id="catalogoSearch" class="form-control" placeholder="Buscar producto..." oninput="filterCatalogo()" style="border:none; box-shadow:none; padding:6px 0;">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="catalogoFilters" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px;"></div>
+
+                <div id="catalogoGrid" style="
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                    gap: 16px;
+                ">
+                    <div class="empty-state" style="grid-column:1/-1">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Cargando productos...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal detalle insumo catálogo -->
+            <div id="catalogoModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+                <div style="background:#fff; border-radius:16px; max-width:420px; width:100%; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.3); animation: fadeInUp 0.2s ease;">
+                    <div id="catalogoModalImg" style="width:100%; min-height:180px; max-height:320px; background:#f8f8f8; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:20px;">
+                        <i class="fas fa-box" style="font-size:3rem; color:#ccc;"></i>
+                    </div>
+                    <div style="padding:24px;">
+                        <h2 id="catalogoModalNombre" style="font-size:1.2rem; font-weight:700; margin-bottom:6px; color:var(--secondary);"></h2>
+                        <p id="catalogoModalCategoria" style="font-size:0.85rem; color:var(--gray); margin-bottom:16px;"></p>
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <span style="font-size:0.85rem; color:var(--gray);">Precio</span>
+                            <span id="catalogoModalPrecio" style="font-size:1.5rem; font-weight:700; color:var(--primary);"></span>
+                        </div>
+                    </div>
+                    <div style="padding:0 24px 20px;">
+                        <button onclick="closeCatalogoModal()" class="btn btn-outline" style="width:100%;">
+                            <i class="fas fa-times"></i> Cerrar
+                        </button>
                     </div>
                 </div>
             </div>

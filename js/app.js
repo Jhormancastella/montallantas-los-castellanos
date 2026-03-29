@@ -16,8 +16,14 @@ function esc(str) {
 // Configuración Firebase
 const { db, storage, auth, fieldIncrement, mode: dataMode } = window.appServices;
 
+// Cliente Supabase compartido (evita múltiples instancias GoTrueClient)
+function getSupabaseClient() {
+    return window.appServices._supabaseClient;
+}
+
 // Variables globales
 let selectedInsumos = [];
+let selectedServicios = [];
 let currentReportData = [];
 let isLoggedIn = false;
 let isAdminUser = false;
@@ -34,9 +40,10 @@ const sidebar = document.getElementById('sidebar');
 
 function setAdminUiLoggedIn(user) {
     isLoggedIn = true;
-    const adminBtn = document.getElementById('adminLoginBtn');
-    adminBtn.innerHTML = '<i class="fas fa-user-check"></i><span>Admin</span>';
-    adminBtn.onclick = logout;
+
+    // Ocultar botón iniciar sesión del sidebar
+    const loginNav = document.getElementById('loginNavItem');
+    if (loginNav) loginNav.style.display = 'none';
 
     document.getElementById('currentDateContainer').classList.remove('hidden');
     document.getElementById('userInfoContainer').classList.remove('hidden');
@@ -45,17 +52,49 @@ function setAdminUiLoggedIn(user) {
         document.getElementById('userName').textContent = user.email.split('@')[0];
         document.getElementById('userAvatar').textContent = user.email.substring(0, 2).toUpperCase();
     }
+
+    // Mostrar menú admin
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+    // Mostrar elementos del dashboard que son solo admin
+    document.querySelectorAll('.dashboard-admin-only').forEach(el => el.style.display = '');
+    // Ocultar bienvenida pública
+    const pw = document.getElementById('publicWelcome');
+    if (pw) pw.style.display = 'none';
+    // Detener autoplay del carrusel
+    detenerAutoplay();
 }
 
 function setAdminUiLoggedOut() {
     isLoggedIn = false;
     isAdminUser = false;
-    const adminBtn = document.getElementById('adminLoginBtn');
-    adminBtn.innerHTML = '<i class="fas fa-user-shield"></i><span>AD</span>';
-    adminBtn.onclick = showLoginModal;
+
+    // Mostrar botón iniciar sesión del sidebar
+    const loginNav = document.getElementById('loginNavItem');
+    if (loginNav) loginNav.style.display = '';
 
     document.getElementById('currentDateContainer').classList.add('hidden');
     document.getElementById('userInfoContainer').classList.add('hidden');
+
+    // Cerrar dropdown si estaba abierto
+    const dd = document.getElementById('userDropdown');
+    if (dd) dd.style.display = 'none';
+
+    // Ocultar menú admin
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+    // Ocultar elementos del dashboard que son solo admin
+    document.querySelectorAll('.dashboard-admin-only').forEach(el => el.style.display = 'none');
+    // Mostrar bienvenida pública
+    const pw = document.getElementById('publicWelcome');
+    if (pw) pw.style.display = '';
+    // Cargar servicios públicos
+    loadPublicServicios();
+    // Redirigir al dashboard si está en sección admin
+    const activeSection = document.querySelector('.section.active');
+    if (activeSection && ADMIN_SECTIONS.has(activeSection.id)) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById('dashboardSection').classList.add('active');
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    }
 }
 
 async function validateAdminAccess() {
@@ -200,6 +239,32 @@ function updateCurrentDate() {
     document.getElementById('currentDate').textContent = today.charAt(0).toUpperCase() + today.slice(1);
 }
 
+// Toggle dropdown de usuario
+function toggleUserMenu() {
+    const dd = document.getElementById('userDropdown');
+    const avatar = document.getElementById('userAvatar');
+    if (!dd || !avatar) return;
+
+    if (dd.style.display === 'none' || dd.style.display === '') {
+        // Calcular posición basada en el avatar
+        const rect = avatar.getBoundingClientRect();
+        dd.style.top = (rect.bottom + 8) + 'px';
+        dd.style.right = (window.innerWidth - rect.right) + 'px';
+        dd.style.display = 'block';
+    } else {
+        dd.style.display = 'none';
+    }
+}
+
+// Cerrar dropdown al hacer clic fuera
+document.addEventListener('click', (e) => {
+    const container = document.getElementById('userInfoContainer');
+    const dd = document.getElementById('userDropdown');
+    if (dd && container && !container.contains(e.target)) {
+        dd.style.display = 'none';
+    }
+});
+
 // Toast notification
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
@@ -237,14 +302,23 @@ function toggleMobileMenu() {
 }
 
 // Mostrar sección activa
+// Secciones que requieren sesión admin
+const ADMIN_SECTIONS = new Set(['posSection','servicesSection','employeesSection','insumosSection','ventaInsumosSection','historialVentasInsumosSection','prestamosSection','reportsSection']);
+
 function showSection(id) {
+    // Si la sección es admin y no hay sesión, redirigir al dashboard
+    if (ADMIN_SECTIONS.has(id) && !isLoggedIn) {
+        id = 'dashboardSection';
+        showToast('Inicia sesión para acceder a esa sección', 'error');
+    }
+
     // Ocultar todas las secciones
     document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     
     // Actualizar navegación activa
     document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-    event.target.closest('.nav-link')?.classList.add('active');
+    event?.target?.closest('.nav-link')?.classList.add('active');
     
     // Cerrar menú móvil si está abierto
     if (window.innerWidth <= 768) {
@@ -262,6 +336,7 @@ function showSection(id) {
     if (id === 'ventaInsumosSection') loadVentaInsumosData();
     if (id === 'prestamosSection') loadPrestamosData();
     if (id === 'dashboardSection') loadDashboardData();
+    if (id === 'catalogoSection' && !_catalogoData.length) loadCatalogo();
 }
 
 // ============================================
@@ -419,17 +494,50 @@ function loadPOSData() {
     });
 }
 
-function updateServicePrice() {
+function addServicioToList() {
     const select = document.getElementById('posService');
-    const unitPrice = parseFloat(select.options[select.selectedIndex]?.dataset.price) || 0;
+    const id = select.value;
+    if (!id) { showToast('Selecciona un servicio', 'error'); return; }
+
+    const nombre = select.options[select.selectedIndex].text;
+    const precio = parseFloat(select.options[select.selectedIndex].dataset.price) || 0;
     const cantidad = parseInt(document.getElementById('posServiceCantidad').value) || 1;
-    const total = unitPrice * cantidad;
-    const label = cantidad > 1
-        ? `<i class="fas fa-tag"></i> Precio unitario: ${formatCOP(unitPrice)} × ${cantidad} = ${formatCOP(total)}`
-        : `<i class="fas fa-tag"></i> Precio: ${formatCOP(unitPrice)}`;
-    document.getElementById('servicePrice').innerHTML = label;
+
+    // Si ya existe el mismo servicio, sumar cantidad
+    const existing = selectedServicios.find(s => s.id === id);
+    if (existing) {
+        existing.cantidad += cantidad;
+    } else {
+        selectedServicios.push({ id, nombre, precio, cantidad });
+    }
+
+    renderSelectedServicios();
+    calculateSummary();
+    select.selectedIndex = 0;
+    document.getElementById('posServiceCantidad').value = 1;
+}
+
+function renderSelectedServicios() {
+    const container = document.getElementById('selectedServicios');
+    if (!container) return;
+    if (!selectedServicios.length) { container.innerHTML = ''; return; }
+    container.innerHTML = selectedServicios.map((s, i) => `
+        <div class="insumo-tag">
+            <i class="fas fa-wrench"></i>
+            ${esc(s.nombre)} x${s.cantidad} — ${formatCOP(s.precio * s.cantidad)}
+            <button onclick="removeServicio(${i})"><i class="fas fa-times"></i></button>
+        </div>
+    `).join('');
+}
+
+function removeServicio(index) {
+    selectedServicios.splice(index, 1);
+    renderSelectedServicios();
     calculateSummary();
 }
+
+// Mantener compatibilidad (ya no se usa pero evita errores si algo la llama)
+function updateServicePrice() { calculateSummary(); }
 
 function loadAdminData() {
     // Cargar servicios
@@ -827,17 +935,15 @@ function removeInsumo(index) {
 }
 
 function calculateSummary() {
-    const serviceSelect = document.getElementById('posService');
     const employeeSelect = document.getElementById('posEmployee');
-    const unitPrice = parseFloat(serviceSelect.options[serviceSelect.selectedIndex]?.dataset.price) || 0;
-    const cantidad = parseInt(document.getElementById('posServiceCantidad').value) || 1;
-    const servicePrice = unitPrice * cantidad;
     const commissionPercent = parseFloat(employeeSelect.options[employeeSelect.selectedIndex]?.dataset.commission) || 0;
-    const insumosTotal = selectedInsumos.reduce((total, ins) => total + ins.precio, 0);
-    const commission = Math.round((servicePrice * commissionPercent) / 100);
-    const total = servicePrice + insumosTotal;
 
-    document.getElementById('summaryServiceTotal').textContent = formatCOP(servicePrice);
+    const serviceTotal = selectedServicios.reduce((sum, s) => sum + s.precio * s.cantidad, 0);
+    const insumosTotal = selectedInsumos.reduce((sum, ins) => sum + ins.precio, 0);
+    const commission = Math.round((serviceTotal * commissionPercent) / 100);
+    const total = serviceTotal + insumosTotal;
+
+    document.getElementById('summaryServiceTotal').textContent = formatCOP(serviceTotal);
     document.getElementById('summaryInsumosTotal').textContent = formatCOP(insumosTotal);
     document.getElementById('summaryCommission').textContent = formatCOP(commission);
     document.getElementById('summaryTotal').textContent = formatCOP(total);
@@ -845,66 +951,83 @@ function calculateSummary() {
 
 function saveService() {
     if (!requireAdminOrToast()) return;
-    const serviceId = document.getElementById('posService').value;
     const employeeId = document.getElementById('posEmployee').value;
     const employeeName = document.getElementById('posEmployee').options[document.getElementById('posEmployee').selectedIndex]?.text || '';
-    const serviceBaseName = document.getElementById('posService').options[document.getElementById('posService').selectedIndex]?.text || '';
-    const cantidad = parseInt(document.getElementById('posServiceCantidad').value) || 1;
-    const serviceName = cantidad > 1 ? `${serviceBaseName} x${cantidad}` : serviceBaseName;
     const client = document.getElementById('posClient').value;
-    const servicePrice = parseFloat(document.getElementById('summaryServiceTotal').textContent.replace(/[^0-9,]/g, '').replace(/,/g, '.'));
-    const insumosTotal = parseFloat(document.getElementById('summaryInsumosTotal').textContent.replace(/[^0-9,]/g, '').replace(/,/g, '.'));
-    const commission = parseFloat(document.getElementById('summaryCommission').textContent.replace(/[^0-9,]/g, '').replace(/,/g, '.'));
-    const total = parseFloat(document.getElementById('summaryTotal').textContent.replace(/[^0-9,]/g, '').replace(/,/g, '.'));
     const date = new Date().toISOString().split('T')[0];
     const time = new Date().toLocaleTimeString('es-ES');
 
-    if (serviceId && employeeId) {
-        db.collection('servicios_realizados').add({
-            fecha: date,
-            hora: time,
-            servicio_id: serviceId,
-            servicio_nombre: serviceName,
-            empleado_id: employeeId,
-            empleado_nombre: employeeName,
-            cliente: client || 'Sin nombre',
-            precio_servicio: servicePrice,
-            insumos_utilizados: JSON.stringify(selectedInsumos),
-            total_insumos: insumosTotal,
-            comision: commission,
-            total_cobrado: total
-        }).then(docRef => {
-            // Actualizar stock de insumos
-            selectedInsumos.forEach(ins => {
-                db.collection('insumos').doc(ins.id).update({
-                    stock: fieldIncrement(-1)
-                });
-            });
-            
-            // Generar vista previa de factura
-            generateInvoicePreview(docRef.id, date, time, client, serviceName, servicePrice, insumosTotal, total);
-            
-            // Reiniciar formulario
-            selectedInsumos = [];
-            document.getElementById('posClient').value = '';
-            document.getElementById('posService').selectedIndex = 0;
-            document.getElementById('posEmployee').selectedIndex = 0;
-            document.getElementById('posServiceCantidad').value = 1;
-            renderSelectedInsumos();
-            calculateSummary();
-            document.getElementById('servicePrice').innerHTML = '<i class="fas fa-tag"></i> Precio: $0';
-            
-            showToast('¡Servicio guardado exitosamente!');
-            loadPOSData();
-        }).catch(err => showToast('Error al guardar: ' + err, 'error'));
-    } else {
-        showToast('Selecciona empleado y servicio', 'error');
-    }
+    if (!selectedServicios.length) { showToast('Agrega al menos un servicio', 'error'); return; }
+    if (!employeeId) { showToast('Selecciona un empleado', 'error'); return; }
+
+    const serviceTotal = selectedServicios.reduce((sum, s) => sum + s.precio * s.cantidad, 0);
+    const insumosTotal = selectedInsumos.reduce((sum, ins) => sum + ins.precio, 0);
+    const commissionPercent = parseFloat(document.getElementById('posEmployee').options[document.getElementById('posEmployee').selectedIndex]?.dataset.commission) || 0;
+    const commission = Math.round((serviceTotal * commissionPercent) / 100);
+    const total = serviceTotal + insumosTotal;
+
+    // Nombre resumido para el ticket
+    const serviceName = selectedServicios.map(s => s.cantidad > 1 ? `${s.nombre} x${s.cantidad}` : s.nombre).join(' + ');
+    // Usar el id del primer servicio para compatibilidad
+    const serviceId = selectedServicios[0].id;
+
+    db.collection('servicios_realizados').add({
+        fecha: date,
+        hora: time,
+        servicio_id: serviceId,
+        servicio_nombre: serviceName,
+        empleado_id: employeeId,
+        empleado_nombre: employeeName,
+        cliente: client || 'Sin nombre',
+        precio_servicio: serviceTotal,
+        insumos_utilizados: selectedInsumos,
+        total_insumos: insumosTotal,
+        comision: commission,
+        total_cobrado: total
+    }).then(docRef => {
+        selectedInsumos.forEach(ins => {
+            db.collection('insumos').doc(ins.id).update({ stock: fieldIncrement(-1) });
+        });
+
+        generateInvoicePreview(docRef.id, date, time, client, selectedServicios, selectedInsumos, serviceTotal, insumosTotal, commission, total);
+
+        // Reset
+        selectedInsumos = [];
+        selectedServicios = [];
+        document.getElementById('posClient').value = '';
+        document.getElementById('posService').selectedIndex = 0;
+        document.getElementById('posEmployee').selectedIndex = 0;
+        document.getElementById('posServiceCantidad').value = 1;
+        renderSelectedInsumos();
+        renderSelectedServicios();
+        calculateSummary();
+
+        showToast('¡Servicio guardado exitosamente!');
+        loadPOSData();
+    }).catch(err => showToast('Error al guardar: ' + err, 'error'));
 }
 
-function generateInvoicePreview(id, date, time, client, serviceName, servicePrice, insumosTotal, total) {
-    _invoiceCtx = { id, date, time, client, serviceName, servicePrice, insumosTotal, total };
+function generateInvoicePreview(id, date, time, client, servicios, insumos, serviceTotal, insumosTotal, commission, total) {
+    _invoiceCtx = { id, date, time, client, servicios, insumos, serviceTotal, insumosTotal, commission, total };
     const preview = document.getElementById('invoicePreview');
+
+    const serviciosRows = servicios.map(s =>
+        `<div class="ticket-row">
+            <span>${esc(s.nombre)}${s.cantidad > 1 ? ` x${s.cantidad}` : ''}</span>
+            <span>${formatCOP(s.precio * s.cantidad)}</span>
+        </div>`
+    ).join('');
+
+    const insumosRows = insumos.length
+        ? `<div class="ticket-row" style="font-weight:600; margin-top:4px;"><span>Insumos:</span><span></span></div>` +
+          insumos.map(ins =>
+            `<div class="ticket-row" style="padding-left:8px; font-size:0.78rem;">
+                <span>· ${esc(ins.nombre)}</span>
+                <span>${formatCOP(ins.precio)}</span>
+            </div>`
+          ).join('')
+        : '';
+
     preview.innerHTML = `
         <div id="ticketServicio" class="ticket">
             <div class="ticket-logo-row">
@@ -917,9 +1040,12 @@ function generateInvoicePreview(id, date, time, client, serviceName, servicePric
             <div class="ticket-row"><span>Hora</span><span>${time}</span></div>
             <div class="ticket-row"><span>Cliente</span><span>${esc(client) || 'Sin nombre'}</span></div>
             <div class="ticket-divider">- - - - - - - - - - - - - - - - - -</div>
-            <div class="ticket-row"><span>Servicio</span><span>${esc(serviceName)}</span></div>
-            <div class="ticket-row"><span>Valor servicio</span><span>${formatCOP(servicePrice)}</span></div>
-            <div class="ticket-row"><span>Insumos</span><span>${formatCOP(insumosTotal)}</span></div>
+            ${serviciosRows}
+            ${insumosRows}
+            <div class="ticket-divider">= = = = = = = = = = = = = = = = = =</div>
+            <div class="ticket-row"><span>Subtotal servicios</span><span>${formatCOP(serviceTotal)}</span></div>
+            ${insumosTotal > 0 ? `<div class="ticket-row"><span>Subtotal insumos</span><span>${formatCOP(insumosTotal)}</span></div>` : ''}
+            <div class="ticket-row"><span>Comisión empleado</span><span>${formatCOP(commission)}</span></div>
             <div class="ticket-divider">= = = = = = = = = = = = = = = = = =</div>
             <div class="ticket-total">TOTAL: ${formatCOP(total)}</div>
             <div class="ticket-divider">- - - - - - - - - - - - - - - - - -</div>
@@ -1061,7 +1187,7 @@ function saveVentaInsumos() {
         fecha: date,
         hora: time,
         cliente: client || 'Sin nombre',
-        insumos_vendidos: JSON.stringify(ventaSelectedInsumos),
+        insumos_vendidos: ventaSelectedInsumos,
         total_insumos: insumosTotal,
         total_cobrado: insumosTotal
     }).then(docRef => {
@@ -1552,14 +1678,27 @@ function loadHistorialVentasInsumos() {
         let html = '<div class="table-responsive"><table class="report-table"><thead><tr><th>Hora</th><th>Cliente</th><th>Insumos</th><th>Total</th><th>Acciones</th></tr></thead><tbody>';
         snap.forEach(doc => {
             const data = doc.data();
-            const insumos = JSON.parse(data.insumos_vendidos || '[]');
-            const insumosText = insumos.map(i => `${esc(i.nombre)} x${i.cantidad}`).join(', ');
+
+            // El campo puede venir como string JSON o como array (JSONB de Supabase)
+            let insumos = [];
+            const rawInsumos = data.insumos_vendidos ?? data.insumosVendidos ?? [];
+            if (typeof rawInsumos === 'string') {
+                try { insumos = JSON.parse(rawInsumos); } catch { insumos = []; }
+            } else if (Array.isArray(rawInsumos)) {
+                insumos = rawInsumos;
+            }
+
+            const insumosText = insumos.map(i => `${esc(i.nombre)} x${i.cantidad ?? 1}`).join(', ');
+
+            // total_cobrado se normaliza a totalCobrado por el adapter
+            const total = data.totalCobrado ?? data.total_cobrado ?? 0;
+
             html += `
                 <tr>
                     <td>${esc(data.hora)}</td>
                     <td>${esc(data.cliente)}</td>
                     <td>${esc(insumosText)}</td>
-                    <td>${formatCOP(data.total_cobrado)}</td>
+                    <td>${formatCOP(total)}</td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="editVentaInsumo('${doc.id}')"><i class="fas fa-edit"></i></button>
                         <button class="btn btn-sm btn-danger" onclick="deleteVentaInsumo('${doc.id}')"><i class="fas fa-trash"></i></button>
@@ -1580,20 +1719,24 @@ function editVentaInsumo(id) {
             return;
         }
         const data = doc.data();
-        const insumos = JSON.parse(data.insumos_vendidos || '[]');
-        
-        // Llenar el formulario con los datos existentes
+
+        let insumos = [];
+        const raw = data.insumos_vendidos ?? data.insumosVendidos ?? [];
+        if (typeof raw === 'string') {
+            try { insumos = JSON.parse(raw); } catch { insumos = []; }
+        } else if (Array.isArray(raw)) {
+            insumos = raw;
+        }
+
         document.getElementById('ventaClient').value = data.cliente;
         ventaSelectedInsumos = insumos;
         renderVentaSelectedInsumos();
         calculateVentaSummary();
-        
-        // Cambiar el botón de guardar para que actualice en lugar de crear
+
         const saveBtn = document.querySelector('#ventaInsumosSection .btn-success');
         saveBtn.innerHTML = '<i class="fas fa-save"></i> Actualizar Venta';
         saveBtn.onclick = function() { updateVentaInsumo(id); };
-        
-        // Mostrar la sección de venta de insumos
+
         showSection('ventaInsumosSection');
         showToast('Editando venta. Modifica los datos y guarda.', 'success');
     }).catch(err => showToast('Error al cargar venta: ' + err, 'error'));
@@ -1663,15 +1806,24 @@ function deleteVentaInsumo(id) {
             return;
         }
         const data = doc.data();
-        const insumos = JSON.parse(data.insumos_vendidos || '[]');
-        
+
+        // insumos_vendidos puede ser array (JSONB) o string JSON
+        let insumos = [];
+        const raw = data.insumos_vendidos ?? data.insumosVendidos ?? [];
+        if (typeof raw === 'string') {
+            try { insumos = JSON.parse(raw); } catch { insumos = []; }
+        } else if (Array.isArray(raw)) {
+            insumos = raw;
+        }
+
         // Restaurar stock
         insumos.forEach(insumo => {
+            if (!insumo.id) return;
             db.collection('insumos').doc(insumo.id).get().then(insumoDoc => {
                 if (insumoDoc.exists) {
                     const currentStock = insumoDoc.data().stock || 0;
                     db.collection('insumos').doc(insumo.id).update({
-                        stock: currentStock + insumo.cantidad
+                        stock: currentStock + (insumo.cantidad || 1)
                     });
                 }
             });
@@ -1800,3 +1952,275 @@ window.onload = () => {
     // Inicializar autenticación (requerido para Firebase y Supabase)
     initAuthListener();
 };
+
+// ============================================
+// SERVICIOS PÚBLICOS (DASHBOARD SIN SESIÓN)
+// ============================================
+// SERVICIOS PÚBLICOS - CARRUSEL COVERFLOW AUTO-ROTANTE
+// ============================================
+let _carruselIndex = 0;
+let _carruselData = [];
+let _carruselTimer = null;
+const CF_INTERVAL = 2800; // ms entre cada avance automático
+
+async function loadPublicServicios() {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const { data, error } = await client
+        .from('servicios')
+        .select('nombre, precio')
+        .order('nombre');
+
+    if (error || !data || !data.length) {
+        const cf = document.getElementById('coverflow');
+        if (cf) cf.innerHTML = `<div class="empty-state"><i class="fas fa-tools"></i><p>No hay servicios disponibles</p></div>`;
+        return;
+    }
+
+    _carruselData = data;
+    _carruselIndex = 0;
+    renderCoverflow();
+
+    // Recalcular en resize (móvil/desktop)
+    window.removeEventListener('resize', renderCoverflow);
+    window.addEventListener('resize', renderCoverflow);
+    iniciarAutoplay();
+}
+
+function iniciarAutoplay() {
+    detenerAutoplay();
+    _carruselTimer = setInterval(() => {
+        _carruselIndex = (_carruselIndex + 1) % _carruselData.length;
+        renderCoverflow();
+    }, CF_INTERVAL);
+}
+
+function detenerAutoplay() {
+    if (_carruselTimer) { clearInterval(_carruselTimer); _carruselTimer = null; }
+}
+
+function reanudarAutoplay() {
+    // Espera un poco antes de reanudar para no interrumpir al usuario
+    detenerAutoplay();
+    _carruselTimer = setTimeout(() => iniciarAutoplay(), 3500);
+}
+
+const _cfIcons = ['fa-wrench','fa-tire','fa-cog','fa-tools','fa-car','fa-screwdriver','fa-hammer','fa-truck'];
+
+function renderCoverflow() {
+    const container = document.getElementById('coverflow');
+    const dotsContainer = document.getElementById('carruselDots');
+    if (!container) return;
+
+    const total = _carruselData.length;
+    container.innerHTML = '';
+
+    _carruselData.forEach((s, i) => {
+        // Calcular offset circular
+        let offset = i - _carruselIndex;
+        const half = Math.floor(total / 2);
+        if (offset > half) offset -= total;
+        if (offset < -half) offset += total;
+
+        const card = document.createElement('div');
+        card.className = 'cf-card';
+        card.innerHTML = `
+            <div class="servicio-pub-icon" style="margin:0 auto 12px;">
+                <i class="fas ${_cfIcons[i % _cfIcons.length]}"></i>
+            </div>
+            <div class="servicio-pub-name">${esc(s.nombre)}</div>
+            <div class="servicio-pub-price">${formatCOP(s.precio)}</div>
+        `;
+        card.onclick = () => {
+            _carruselIndex = i;
+            renderCoverflow();
+            reanudarAutoplay();
+        };
+        aplicarEstiloCf(card, offset);
+        container.appendChild(card);
+    });
+
+    // Dots
+    if (dotsContainer) {
+        dotsContainer.innerHTML = _carruselData.map((_, i) => `
+            <span onclick="_carruselIndex=${i};renderCoverflow();reanudarAutoplay();" style="
+                width:${i === _carruselIndex ? '20px' : '8px'}; height:8px;
+                border-radius:4px; cursor:pointer; display:inline-block;
+                background:${i === _carruselIndex ? 'var(--primary)' : '#ddd'};
+                transition: all 0.3s;">
+            </span>
+        `).join('');
+    }
+}
+
+function aplicarEstiloCf(card, offset) {
+    const abs = Math.abs(offset);
+    const isMobile = window.innerWidth < 600;
+    const sideOffset = isMobile ? 110 : 160;
+    const farOffset  = isMobile ? 150 : 220;
+
+    let translateX, scale, opacity, zIndex, rotateY, blur;
+
+    if (offset === 0) {
+        translateX = 0; scale = 1; opacity = 1; zIndex = 10; rotateY = 0; blur = 0;
+    } else if (abs === 1) {
+        translateX = offset * sideOffset; scale = isMobile ? 0.7 : 0.78; opacity = isMobile ? 0.5 : 0.65; zIndex = 5; rotateY = offset * -35; blur = 1;
+    } else if (abs === 2) {
+        translateX = offset * farOffset; scale = isMobile ? 0.55 : 0.6; opacity = isMobile ? 0.2 : 0.35; zIndex = 2; rotateY = offset * -45; blur = 2;
+    } else {
+        translateX = offset * (farOffset + 20); scale = 0.5; opacity = 0; zIndex = 1; rotateY = offset * -50; blur = 3;
+    }
+
+    const cardWidth = isMobile ? 160 : 200;
+
+    card.style.cssText = `
+        position: absolute;
+        width: ${cardWidth}px;
+        background: white;
+        border-radius: 16px;
+        padding: ${isMobile ? '16px 12px' : '24px 16px 20px'};
+        text-align: center;
+        box-shadow: ${offset === 0 ? '0 16px 40px rgba(255,107,53,0.25)' : '0 4px 16px rgba(0,0,0,0.1)'};
+        border: ${offset === 0 ? '2px solid var(--primary)' : '2px solid transparent'};
+        transform: translateX(${translateX}px) scale(${scale}) rotateY(${rotateY}deg);
+        opacity: ${opacity};
+        z-index: ${zIndex};
+        filter: blur(${blur}px);
+        transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+        cursor: ${offset === 0 ? 'default' : 'pointer'};
+        transform-style: preserve-3d;
+    `;
+}
+
+function moverCarrusel(dir) {
+    const total = _carruselData.length;
+    if (!total) return;
+    _carruselIndex = (_carruselIndex + dir + total) % total;
+    renderCoverflow();
+    reanudarAutoplay();
+}
+
+function getCarruselVisible() { return 3; }
+function actualizarCarrusel() {}
+function irCarrusel(idx) { _carruselIndex = idx; renderCoverflow(); reanudarAutoplay(); }
+
+
+// ============================================
+// CATÁLOGO PÚBLICO DE INSUMOS
+// ============================================
+let _catalogoData = [];
+let _catalogoCategory = 'all';
+
+async function loadCatalogo() {
+    const grid = document.getElementById('catalogoGrid');
+    if (!grid) return;
+
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const { data, error } = await client
+        .from('insumos')
+        .select('nombre, categoria, precio, imagen_url')
+        .order('categoria')
+        .order('nombre');
+
+    if (error || !data) {
+        grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><i class="fas fa-exclamation-circle"></i><p>No se pudieron cargar los productos</p></div>`;
+        return;
+    }
+
+    _catalogoData = data;
+    _catalogoCategory = 'all';
+    buildCatalogoFilters();
+    renderCatalogo(_catalogoData);
+}
+
+function buildCatalogoFilters() {
+    const container = document.getElementById('catalogoFilters');
+    if (!container) return;
+    const cats = ['all', ...new Set(_catalogoData.map(i => i.categoria).filter(Boolean).sort())];
+    container.innerHTML = cats.map(c => `
+        <button class="cat-chip-nav ${c === 'all' ? 'active' : ''}" onclick="setCatalogoCategory('${esc(c)}', this)">
+            ${c === 'all' ? 'Todos' : esc(c)}
+        </button>
+    `).join('');
+}
+
+function setCatalogoCategory(cat, el) {
+    _catalogoCategory = cat;
+    document.querySelectorAll('.cat-chip-nav').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    filterCatalogo();
+}
+
+function filterCatalogo() {
+    const q = (document.getElementById('catalogoSearch')?.value || '').toLowerCase().trim();
+    let filtered = _catalogoData;
+    if (_catalogoCategory !== 'all') filtered = filtered.filter(i => i.categoria === _catalogoCategory);
+    if (q) filtered = filtered.filter(i => i.nombre.toLowerCase().includes(q) || (i.categoria || '').toLowerCase().includes(q));
+    renderCatalogo(filtered);
+}
+
+function renderCatalogo(list) {
+    const grid = document.getElementById('catalogoGrid');
+    if (!grid) return;
+
+    if (!list.length) {
+        grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><i class="fas fa-box"></i><p>No se encontraron productos</p></div>`;
+        return;
+    }
+
+    grid.innerHTML = list.map((ins, idx) => {
+        const imgHtml = ins.imagen_url
+            ? `<img src="${esc(ins.imagen_url)}" alt="${esc(ins.nombre)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-box\\'></i>'">`
+            : `<i class="fas fa-box"></i>`;
+        return `
+            <div class="catalogo-card" onclick="openCatalogoModal(${idx}, this.closest('#catalogoGrid'))">
+                <div class="catalogo-card-img">${imgHtml}</div>
+                <div class="catalogo-card-body">
+                    <div class="catalogo-card-name">${esc(ins.nombre)}</div>
+                    <div class="catalogo-card-cat">${esc(ins.categoria || '')}</div>
+                    <div class="catalogo-card-price">${formatCOP(ins.precio)}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Guardar lista filtrada para el modal
+    grid._filteredList = list;
+}
+
+function openCatalogoModal(idx) {
+    const grid = document.getElementById('catalogoGrid');
+    const list = grid._filteredList || _catalogoData;
+    const ins = list[idx];
+    if (!ins) return;
+
+    const modal = document.getElementById('catalogoModal');
+    const imgContainer = document.getElementById('catalogoModalImg');
+
+    if (ins.imagen_url) {
+        imgContainer.innerHTML = `<img src="${esc(ins.imagen_url)}" alt="${esc(ins.nombre)}" style="max-width:100%;max-height:280px;object-fit:contain;object-position:center;" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-box\\' style=\\'font-size:3rem;color:#ccc;\\'></i>'">`;
+    } else {
+        imgContainer.innerHTML = `<i class="fas fa-box" style="font-size:3rem;color:#ccc;"></i>`;
+    }
+
+    document.getElementById('catalogoModalNombre').textContent = ins.nombre;
+    document.getElementById('catalogoModalCategoria').textContent = ins.categoria || '';
+    document.getElementById('catalogoModalPrecio').textContent = formatCOP(ins.precio);
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCatalogoModal() {
+    document.getElementById('catalogoModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('catalogoModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCatalogoModal();
+});
+

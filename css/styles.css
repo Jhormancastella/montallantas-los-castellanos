@@ -1066,7 +1066,18 @@ select.form-control {
     }
 
     .topbar {
-        padding: 15px;
+        padding: 10px 16px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        z-index: 200;
+        justify-content: flex-end;
+    }
+
+    .main-content {
+        padding-top: 64px;
     }
 
     .current-date {
@@ -1136,19 +1147,23 @@ select.form-control {
 .ticket-row {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
     margin: 3px 0;
     gap: 8px;
 }
 
 .ticket-row span:first-child {
     color: #555;
-    flex-shrink: 0;
+    flex: 1;
+    word-break: break-word;
+    line-height: 1.3;
 }
 
 .ticket-row span:last-child {
     text-align: right;
     font-weight: 500;
-    word-break: break-word;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .ticket-total {
@@ -1234,4 +1249,162 @@ select.form-control {
 @keyframes fadeIn {
     from { opacity: 0; transform: scale(0.96); }
     to   { opacity: 1; transform: scale(1); }
+}
+
+/* ============================================
+   CATÁLOGO PÚBLICO - GALERÍA DE INSUMOS
+   ============================================ */
+
+.catalogo-card {
+    background: var(--white);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+}
+
+.catalogo-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+}
+
+.catalogo-card-img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #f8f8f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: #ccc;
+    padding: 12px;
+    overflow: hidden;
+}
+
+.catalogo-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+}
+
+.catalogo-card-body {
+    padding: 12px 14px 14px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.catalogo-card-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.catalogo-card-cat {
+    font-size: 0.75rem;
+    color: var(--gray);
+}
+
+.catalogo-card-price {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-top: 4px;
+}
+
+.cat-chip-nav {
+    background: var(--white);
+    border: 1.5px solid #e0e0e0;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 0.8rem;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--gray);
+}
+
+.cat-chip-nav.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.cat-chip-nav:hover:not(.active) {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Dashboard sin sesión: ocultar elementos admin */
+.dashboard-admin-only {
+    transition: opacity 0.3s;
+}
+
+/* ============================================
+   MOSAICO DE SERVICIOS PÚBLICOS
+   ============================================ */
+
+.servicio-pub-card {
+    background: var(--white);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    transition: var(--transition);
+    cursor: default;
+}
+
+.servicio-pub-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.12);
+}
+
+.servicio-pub-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.servicio-pub-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--secondary);
+    line-height: 1.3;
+}
+
+.servicio-pub-price {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+/* Info negocio responsive */
+@media (max-width: 640px) {
+    #publicWelcome .info-grid {
+        grid-template-columns: 1fr !important;
+    }
 }

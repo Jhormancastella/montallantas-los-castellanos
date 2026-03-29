@@ -349,4 +349,12 @@
     }
 
     window.appServices = createAppServices(appConfig);
+
+    // Exponer cliente Supabase para reutilización (evita múltiples instancias GoTrueClient)
+    if (appConfig?.supabase?.enabled && window.supabase?.createClient) {
+        window.appServices._supabaseClient = window.supabase.createClient(
+            appConfig.supabase.url,
+            appConfig.supabase.anonKey
+        );
+    }
 })();
