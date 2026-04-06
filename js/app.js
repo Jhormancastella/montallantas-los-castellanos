@@ -757,10 +757,26 @@ function editEmployee(id, name, comision) {
 function deleteEmployee(id) {
     if (!requireAdminOrToast()) return;
     if (confirm('¿Estás seguro de eliminar este empleado?')) {
-        db.collection('empleados').doc(id).delete().then(() => {
-            loadAdminData();
-            showToast('Empleado eliminado');
-        });
+        const client = window.appServices._supabaseClient;
+        if (client) {
+            client.from('servicios_realizados').delete().eq('empleado_id', id).then(() => {
+                client.from('empleados').delete().eq('id', id).then(() => {
+                    loadAdminData();
+                    showToast('Empleado eliminado');
+                }).catch(err => {
+                    console.error(err);
+                    showToast('Error al eliminar empleado');
+                });
+            }).catch(err => {
+                console.error(err);
+                showToast('Error al eliminar servicios relacionados');
+            });
+        } else {
+            db.collection('empleados').doc(id).delete().then(() => {
+                loadAdminData();
+                showToast('Empleado eliminado');
+            });
+        }
     }
 }
 
