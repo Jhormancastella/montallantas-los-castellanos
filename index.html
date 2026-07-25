@@ -41,16 +41,10 @@
             </div>
         </div>
         <nav class="nav-menu">
-            <div class="nav-item" id="loginNavItem">
-                <a class="nav-link" onclick="showLoginModal()" id="adminLoginBtn">
-                    <i class="fas fa-sign-in-alt"></i>
-                    <span>Iniciar Sesión</span>
-                </a>
-            </div>
             <div class="nav-item">
-                <a class="nav-link active" onclick="showSection('dashboardSection')">
+                <a class="nav-link active" onclick="showSection('dashboardSection')" id="homeNavLink">
                     <i class="fas fa-home"></i>
-                    <span>Dashboard</span>
+                    <span id="homeNavLabel">Inicio</span>
                 </a>
             </div>
             <div class="nav-item">
@@ -108,6 +102,12 @@
                 </a>
             </div>
         </nav>
+        <div class="sidebar-footer" id="loginNavItem">
+            <a class="nav-link" onclick="showLoginModal()" id="adminLoginBtn">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>Iniciar Sesión</span>
+            </a>
+        </div>
     </aside>
 
     <!-- Overlay for mobile -->
@@ -204,6 +204,45 @@
                         <span class="stat-change down">
                             <i class="fas fa-exclamation-triangle"></i> 3 con bajo stock
                         </span>
+                    </div>
+                </div>
+
+                <!-- Supabase Status Card -->
+                <div class="card dashboard-admin-only" id="supabaseStatusCard" style="display:none; margin-bottom:20px;">
+                    <div class="card-body" style="padding:16px 20px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <div style="width:40px;height:40px;border-radius:10px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                    <i class="fas fa-database" style="color:#22c55e; font-size:1.1rem;"></i>
+                                </div>
+                                <div>
+                                    <div style="font-size:0.75rem;color:var(--gray);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;">Base de datos · Supabase</div>
+                                    <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+                                        <span id="supabaseStatusDot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+                                        <span id="supabaseStatusText" style="font-weight:600;font-size:0.9rem;">Verificando...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:24px;flex-wrap:wrap;">
+                                <div style="text-align:center;">
+                                    <div style="font-size:0.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.04em;">Plan</div>
+                                    <div style="font-weight:600;font-size:0.85rem;color:var(--secondary);">Gratuito</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:0.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.04em;">Se pausa si inactivo por</div>
+                                    <div style="font-weight:700;font-size:0.85rem;color:var(--primary);">7 días</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:0.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.04em;">Última actividad</div>
+                                    <div style="font-weight:600;font-size:0.85rem;color:var(--secondary);" id="supabaseLastPing">Ahora</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:0.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.04em;">Plazo restauración</div>
+                                    <div style="font-weight:600;font-size:0.85rem;color:var(--secondary);">90 días tras pausa</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="supabaseStatusAlert" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:500;"></div>
                     </div>
                 </div>
 

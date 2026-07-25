@@ -53,6 +53,18 @@ body {
     z-index: 1000;
     transition: var(--transition);
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-menu {
+    flex: 1;
+    padding: 20px 0;
+}
+
+.sidebar-footer {
+    padding: 15px;
+    border-top: 1px solid rgba(255,255,255,0.1);
 }
 
 .sidebar.collapsed {
@@ -95,10 +107,6 @@ body {
 
 .sidebar.collapsed .brand-logo-mini {
     display: block;
-}
-
-.nav-menu {
-    padding: 20px 0;
 }
 
 .nav-item {
@@ -187,12 +195,17 @@ body {
     background: var(--light);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    display: flex;
+    display: none; /* Oculto por defecto — se muestra solo cuando el sidebar está colapsado */
     align-items: center;
     justify-content: center;
     font-size: 1.2rem;
     color: var(--secondary);
     transition: var(--transition);
+}
+
+/* Mostrar el toggle-btn solo cuando el sidebar está colapsado */
+.sidebar.collapsed ~ .main-content .toggle-btn {
+    display: flex;
 }
 
 .toggle-btn:hover {
