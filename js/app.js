@@ -27,9 +27,25 @@ let selectedServicios = [];
 let currentReportData = [];
 let isLoggedIn = false;
 let isAdminUser = false;
+const BUSINESS_TIME_ZONE = 'America/Bogota';
 // Contexto de factura activa (evita pasar datos de usuario en atributos onclick)
 let _invoiceCtx = {};
 let _ventaInvoiceCtx = {};
+
+function getBusinessDate(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: BUSINESS_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+}
+
+function getBusinessTime(date = new Date()) {
+    return date.toLocaleTimeString('es-ES', { timeZone: BUSINESS_TIME_ZONE, hourCycle: 'h23' });
+}
 
 // ============================================
 // AUTENTICACIÓN
@@ -234,8 +250,8 @@ function logout() {
 
 // Actualizar fecha actual
 function updateCurrentDate() {
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const today = new Date().toLocaleDateString('es-ES', options);
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: BUSINESS_TIME_ZONE };
+    const today = new Date().toLocaleDateString('es-CO', options);
     document.getElementById('currentDate').textContent = today.charAt(0).toUpperCase() + today.slice(1);
 }
 
@@ -343,39 +359,70 @@ function showSection(id) {
 // CARGA DE DATOS DEL DASHBOARD
 // ============================================
 function loadDashboardData() {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Ventas de hoy
-    db.collection('servicios_realizados').where('fecha', '==', today).get().then(snap => {
+    const today = getBusinessDate();
+
+    Promise.all([
+        db.collection('servicios_realizados').where('fecha', '==', today).get(),
+        db.collection('ventas_insumos').where('fecha', '==', today).get()
+    ]).then(([servicesSnap, productSalesSnap]) => {
         let total = 0;
-        snap.forEach(doc => {
-            total += doc.data().totalCobrado || 0;
-        });
-        document.getElementById('statVentasHoy').textContent = formatCOP(total);
-        document.getElementById('statServiciosHoy').textContent = snap.size;
-        
-        // Actividad reciente
-        const activityContainer = document.getElementById('recentActivity');
-        if (snap.size > 0) {
-            activityContainer.innerHTML = '';
-            snap.forEach(doc => {
-                const data = doc.data();
-                activityContainer.innerHTML += `
-                    <div class="list-item">
-                        <div class="list-item-info">
-                            <div class="list-item-icon">
-                                <i class="fas fa-receipt"></i>
-                            </div>
-                            <div class="list-item-text">
-                                <h4>${esc(data.cliente) || 'Sin nombre'}</h4>
-                                <p>${esc(data.hora)} - ${formatCOP(data.totalCobrado)}</p>
-                            </div>
-                        </div>
-                        <span class="badge badge-success">Completado</span>
-                    </div>
-                `;
+        const activity = [];
+
+        servicesSnap.forEach(doc => {
+            const data = doc.data();
+            const amount = Number(data.totalCobrado ?? data.total_cobrado) || 0;
+            total += amount;
+            activity.push({
+                hora: data.hora || '',
+                cliente: data.cliente || 'Sin nombre',
+                descripcion: 'Servicio',
+                total: amount
             });
+        });
+
+        productSalesSnap.forEach(doc => {
+            const data = doc.data();
+            const amount = Number(data.totalCobrado ?? data.total_cobrado) || 0;
+            total += amount;
+            activity.push({
+                hora: data.hora || '',
+                cliente: data.cliente || 'Sin nombre',
+                descripcion: 'Venta de insumos',
+                total: amount
+            });
+        });
+
+        document.getElementById('statVentasHoy').textContent = formatCOP(total);
+        document.getElementById('statServiciosHoy').textContent = servicesSnap.size;
+
+        const activityContainer = document.getElementById('recentActivity');
+        if (activity.length > 0) {
+            activity.sort((a, b) => b.hora.localeCompare(a.hora, 'es'));
+            activityContainer.innerHTML = activity.map(item => `
+                <div class="list-item">
+                    <div class="list-item-info">
+                        <div class="list-item-icon">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <div class="list-item-text">
+                            <h4>${esc(item.cliente)}</h4>
+                            <p>${esc(item.descripcion)} · ${esc(item.hora)} - ${formatCOP(item.total)}</p>
+                        </div>
+                    </div>
+                    <span class="badge badge-success">Completado</span>
+                </div>
+            `).join('');
+        } else {
+            activityContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-receipt"></i>
+                    <p>No hay ventas registradas hoy</p>
+                </div>
+            `;
         }
+    }).catch(error => {
+        console.error('Error al cargar ventas del dashboard:', error);
+        showToast('No se pudieron cargar las ventas del día', 'error');
     });
     
     // Contar empleados
@@ -585,7 +632,7 @@ function loadAdminData() {
         snap.forEach(doc => {
             const emp = doc.data();
             list.innerHTML += `
-                <div class="list-item">
+                <div class="list-item employee-list-item">
                     <div class="list-item-info">
                         <div class="list-item-icon">
                             <i class="fas fa-user"></i>
@@ -970,8 +1017,8 @@ function saveService() {
     const employeeId = document.getElementById('posEmployee').value;
     const employeeName = document.getElementById('posEmployee').options[document.getElementById('posEmployee').selectedIndex]?.text || '';
     const client = document.getElementById('posClient').value;
-    const date = new Date().toISOString().split('T')[0];
-    const time = new Date().toLocaleTimeString('es-ES');
+    const date = getBusinessDate();
+    const time = getBusinessTime();
 
     if (!selectedServicios.length) { showToast('Agrega al menos un servicio', 'error'); return; }
     if (!employeeId) { showToast('Selecciona un empleado', 'error'); return; }
@@ -1191,8 +1238,8 @@ function saveVentaInsumos() {
     if (!requireAdminOrToast()) return;
     const client = document.getElementById('ventaClient').value;
     const insumosTotal = parseFloat(document.getElementById('ventaInsumosTotal').textContent.replace(/[^0-9,]/g, '').replace(/,/g, '.'));
-    const date = new Date().toISOString().split('T')[0];
-    const time = new Date().toLocaleTimeString('es-ES');
+    const date = getBusinessDate();
+    const time = getBusinessTime();
 
     if (ventaSelectedInsumos.length === 0) {
         showToast('Agrega al menos un insumo', 'error');
@@ -1455,7 +1502,7 @@ function editServicioRealizado(id) {
             
             // Crear modal de edición
             const modal = document.createElement('div');
-            modal.className = 'login-screen show';
+            modal.className = 'login-screen show employee-earnings-modal';
             modal.id = 'editServiceModal';
             modal.innerHTML = `
                 <div class="login-container" style="max-width: 600px;">
@@ -1543,50 +1590,48 @@ function showEmployeeEarnings() {
             return;
         }
 
-        // Agrupar por empleado
-        const employeeEarnings = {};
-        
-        // Procesar servicios realizados
-        servicesSnap.forEach(doc => {
-            const data = doc.data();
-            const empId = data.empleado_id || data.empleadoId;
-            const empName = data.empleado_nombre || data.empleadoNombre || data.empleado_id || data.empleadoId;
-            const commission = data.comision || 0;
+        // Agrupar por empleado para mostrar totales y el detalle diario de servicios.
+        const employeeEarnings = new Map();
 
-            if (!employeeEarnings[empId]) {
-                employeeEarnings[empId] = {
-                    nombre: empName,
+        function getEmployee(employeeId, employeeName) {
+            const id = employeeId || 'sin-empleado';
+            if (!employeeEarnings.has(id)) {
+                employeeEarnings.set(id, {
+                    nombre: employeeName || 'Sin empleado asignado',
                     totalComision: 0,
                     totalPrestamos: 0,
                     serviciosRealizados: 0,
                     prestamos: []
-                };
+                });
             }
-            employeeEarnings[empId].totalComision += commission;
-            employeeEarnings[empId].serviciosRealizados += 1;
+            return employeeEarnings.get(id);
+        }
+
+        // Procesar servicios realizados
+        servicesSnap.forEach(doc => {
+            const data = doc.data();
+            const empId = data.empleado_id || data.empleadoId;
+            const empName = data.empleado_nombre || data.empleadoNombre;
+            const commission = Number(data.comision) || 0;
+            const employee = getEmployee(empId, empName || empId);
+
+            employee.totalComision += commission;
+            employee.serviciosRealizados += 1;
         });
 
         // Procesar préstamos
         prestamosSnap.forEach(doc => {
             const data = doc.data();
             const empId = data.empleado_id || data.empleadoId;
-            const empName = data.empleado_nombre || data.empleadoNombre || data.empleado_id || data.empleadoId;
-            const monto = data.monto || 0;
+            const empName = data.empleado_nombre || data.empleadoNombre;
+            const monto = Number(data.monto) || 0;
+            const employee = getEmployee(empId, empName || empId);
 
-            if (!employeeEarnings[empId]) {
-                employeeEarnings[empId] = {
-                    nombre: empName,
-                    totalComision: 0,
-                    totalPrestamos: 0,
-                    serviciosRealizados: 0,
-                    prestamos: []
-                };
-            }
-            employeeEarnings[empId].totalPrestamos += monto;
-            employeeEarnings[empId].prestamos.push({
+            employee.totalPrestamos += monto;
+            employee.prestamos.push({
                 monto: monto,
                 motivo: data.motivo || 'Sin motivo',
-                hora: data.hora
+                hora: data.hora || 'Sin hora'
             });
         });
 
@@ -1596,8 +1641,7 @@ function showEmployeeEarnings() {
         modal.id = 'earningsModal';
         
         let earningsHTML = '';
-        Object.keys(employeeEarnings).forEach(empId => {
-            const emp = employeeEarnings[empId];
+        employeeEarnings.forEach(emp => {
             const gananciaNeta = emp.totalComision - emp.totalPrestamos;
             
             let prestamosHTML = '';
@@ -1605,11 +1649,11 @@ function showEmployeeEarnings() {
                 prestamosHTML = `<div style="margin-top: 10px; padding: 10px; background: var(--light); border-radius: 8px;">
                     <small style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> Préstamos del día:</small>`;
                 emp.prestamos.forEach(pres => {
-                    prestamosHTML += `<div style="font-size: 0.9rem; margin-top: 5px;">- ${pres.hora}: ${formatCOP(pres.monto)} (${pres.motivo})</div>`;
+                    prestamosHTML += `<div style="font-size: 0.9rem; margin-top: 5px;">- ${esc(pres.hora)}: ${formatCOP(pres.monto)} (${esc(pres.motivo)})</div>`;
                 });
                 prestamosHTML += `</div>`;
             }
-            
+
             earningsHTML += `
                 <div class="list-item" style="flex-direction: column; align-items: flex-start;">
                     <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
@@ -1644,22 +1688,134 @@ function showEmployeeEarnings() {
         });
 
         modal.innerHTML = `
-            <div class="login-container" style="max-width: 700px;">
-                <div class="login-header">
+            <div class="login-container employee-earnings-container">
+                <div class="login-header employee-earnings-header">
                     <h2><i class="fas fa-coins"></i> Ganancias del Día</h2>
                     <p>Fecha: ${date}</p>
                 </div>
-                <div style="padding: 20px;">
-                    ${earningsHTML}
-                </div>
-                <button type="button" class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="closeEarningsModal()">
-                    <i class="fas fa-times"></i> Cerrar
-                </button>
+                <div class="employee-earnings-content">${earningsHTML}</div>
+                <footer class="employee-earnings-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeEarningsModal()">
+                        <i class="fas fa-times"></i> Cerrar
+                    </button>
+                </footer>
             </div>
         `;
         
         document.body.appendChild(modal);
     }).catch(err => showToast('Error al cargar ganancias: ' + err, 'error'));
+}
+
+function showEmployeeServiceRegister() {
+    const date = document.getElementById('reportDate').value;
+    if (!date) {
+        showToast('Selecciona una fecha primero', 'error');
+        return;
+    }
+
+    db.collection('servicios_realizados').where('fecha', '==', date).get().then(snap => {
+        if (snap.size === 0) {
+            showToast('No hay servicios registrados para esta fecha', 'error');
+            return;
+        }
+
+        const employeeServices = new Map();
+        snap.forEach(doc => {
+            const data = doc.data();
+            const employeeId = data.empleado_id || data.empleadoId || 'sin-empleado';
+            const employeeName = data.empleado_nombre || data.empleadoNombre || 'Sin empleado asignado';
+
+            if (!employeeServices.has(employeeId)) {
+                employeeServices.set(employeeId, { nombre: employeeName, servicios: [] });
+            }
+
+            employeeServices.get(employeeId).servicios.push({
+                hora: data.hora || 'Sin hora',
+                cliente: data.cliente || 'Sin cliente',
+                nombre: data.servicio_nombre || data.servicioNombre || data.servicio_id || data.servicioId || 'Servicio sin nombre',
+                precioServicio: Number(data.precio_servicio ?? data.precioServicio) || 0,
+                totalCobrado: Number(data.total_cobrado ?? data.totalCobrado) || 0,
+                comision: Number(data.comision) || 0
+            });
+        });
+
+        let employeesHTML = '';
+        let employeeIndex = 0;
+        employeeServices.forEach(employee => {
+            employee.servicios.sort((a, b) => a.hora.localeCompare(b.hora, 'es'));
+            const servicesHTML = employee.servicios.map(service => `
+                <article class="employee-service-card">
+                    <div class="employee-service-card-header">
+                        <span><i class="fas fa-clock"></i> ${esc(service.hora)}</span>
+                        <strong>${formatCOP(service.comision)} comisión</strong>
+                    </div>
+                    <dl class="employee-service-details">
+                        <div><dt>Cliente</dt><dd>${esc(service.cliente)}</dd></div>
+                        <div><dt>Servicio</dt><dd>${esc(service.nombre)}</dd></div>
+                        <div><dt>Valor servicio</dt><dd>${formatCOP(service.precioServicio)}</dd></div>
+                        <div><dt>Total cobrado</dt><dd>${formatCOP(service.totalCobrado)}</dd></div>
+                    </dl>
+                </article>
+            `).join('');
+            const servicesId = `employee-services-${employeeIndex++}`;
+
+            employeesHTML += `
+                <section class="employee-register-group">
+                    <button type="button" class="employee-register-heading" aria-expanded="false" aria-controls="${servicesId}" onclick="toggleEmployeeServices(this)">
+                        <span class="employee-register-name"><i class="fas fa-user"></i> ${esc(employee.nombre)}</span>
+                        <span>${employee.servicios.length} ${employee.servicios.length === 1 ? 'servicio' : 'servicios'}</span>
+                        <span class="employee-register-toggle-label">Ver servicios <i class="fas fa-chevron-down"></i></span>
+                    </button>
+                    <div class="employee-service-grid employee-register-details" id="${servicesId}" hidden>${servicesHTML}</div>
+                </section>
+            `;
+        });
+
+        const existing = document.getElementById('employeeServiceRegisterModal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'employeeServiceRegisterModal';
+        modal.className = 'login-screen show employee-register-modal';
+        modal.innerHTML = `
+            <section class="login-container employee-register-container" role="dialog" aria-modal="true" aria-labelledby="employeeRegisterTitle">
+                <header class="employee-register-header">
+                    <div>
+                        <h2 id="employeeRegisterTitle"><i class="fas fa-clipboard-list"></i> Registro de empleados</h2>
+                        <p>Servicios realizados el ${esc(date)}</p>
+                    </div>
+                    <button type="button" class="btn btn-outline employee-register-close" aria-label="Cerrar registro" onclick="closeEmployeeServiceRegister()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </header>
+                <div class="employee-register-content">${employeesHTML}</div>
+            </section>
+        `;
+        modal.addEventListener('click', event => {
+            if (event.target === modal) closeEmployeeServiceRegister();
+        });
+        document.body.appendChild(modal);
+    }).catch(err => showToast('Error al cargar el registro de empleados: ' + err, 'error'));
+}
+
+function toggleEmployeeServices(button) {
+    const details = document.getElementById(button.getAttribute('aria-controls'));
+    if (!details) {
+        showToast('No se pudo abrir el detalle de servicios', 'error');
+        return;
+    }
+
+    const isExpanded = button.getAttribute('aria-expanded') === 'true';
+    button.setAttribute('aria-expanded', String(!isExpanded));
+    details.hidden = isExpanded;
+    button.querySelector('.employee-register-toggle-label').innerHTML = isExpanded
+        ? 'Ver servicios <i class="fas fa-chevron-down"></i>'
+        : 'Ocultar servicios <i class="fas fa-chevron-up"></i>';
+}
+
+function closeEmployeeServiceRegister() {
+    const modal = document.getElementById('employeeServiceRegisterModal');
+    if (modal) modal.remove();
 }
 
 function closeEarningsModal() {
@@ -1878,7 +2034,7 @@ function loadPrestamosData() {
     });
 
     // Cargar préstamos del día
-    const today = new Date().toISOString().split('T')[0];
+    const today = getBusinessDate();
     db.collection('prestamos').where('fecha', '==', today).get().then(snap => {
         const list = document.getElementById('prestamosList');
         if (snap.size === 0) {
@@ -1919,8 +2075,8 @@ function addPrestamo() {
     const employeeName = document.getElementById('prestamoEmployee').options[document.getElementById('prestamoEmployee').selectedIndex]?.text || '';
     const amount = parseFloat(document.getElementById('prestamoAmount').value);
     const reason = document.getElementById('prestamoReason').value.trim();
-    const date = new Date().toISOString().split('T')[0];
-    const time = new Date().toLocaleTimeString('es-ES');
+    const date = getBusinessDate();
+    const time = getBusinessTime();
 
     if (!employeeId) {
         showToast('Selecciona un empleado', 'error');
@@ -1963,7 +2119,7 @@ function deletePrestamo(id) {
 // ============================================
 window.onload = () => {
     updateCurrentDate();
-    document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('reportDate').value = getBusinessDate();
 
     // Inicializar autenticación (requerido para Firebase y Supabase)
     initAuthListener();
@@ -2239,4 +2395,3 @@ function closeCatalogoModal() {
 document.getElementById('catalogoModal').addEventListener('click', function(e) {
     if (e.target === this) closeCatalogoModal();
 });
-

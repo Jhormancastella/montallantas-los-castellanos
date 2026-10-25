@@ -1421,3 +1421,329 @@ select.form-control {
         grid-template-columns: 1fr !important;
     }
 }
+
+/* Empleados y reportes: mantener formularios, acciones y registros legibles en móvil. */
+#employeesSection .form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+
+#employeesSection .list-item-info,
+#employeesSection .list-item-text {
+    min-width: 0;
+}
+
+#employeesSection .list-item-info {
+    flex: 1;
+}
+
+#employeesSection .list-item-text h4,
+#employeesSection .list-item-text p {
+    overflow-wrap: anywhere;
+}
+
+.employee-list-item {
+    gap: 16px;
+}
+
+.employee-list-item .list-item-actions {
+    flex-shrink: 0;
+}
+
+#reportsSection .btn-group {
+    row-gap: 12px;
+}
+
+.employee-register-modal,
+.employee-earnings-modal {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.employee-register-container {
+    width: min(100%, 980px);
+    max-width: none;
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    padding: 0;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.employee-register-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.employee-register-header h2 {
+    color: var(--secondary);
+    font-size: 1.25rem;
+    overflow-wrap: anywhere;
+}
+
+.employee-register-header h2 i {
+    color: var(--primary);
+}
+
+.employee-register-header p {
+    margin-top: 4px;
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+.employee-register-close {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+}
+
+.employee-register-content {
+    padding: 20px 24px;
+    overflow-y: auto;
+}
+
+.employee-register-group + .employee-register-group {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+.employee-register-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+    border: 1px solid #e9ecef;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.employee-register-heading:hover,
+.employee-register-heading[aria-expanded="true"] {
+    border-color: rgba(255, 107, 53, 0.45);
+    background: rgba(255, 107, 53, 0.04);
+}
+
+.employee-register-heading:focus-visible {
+    outline: 3px solid rgba(255, 107, 53, 0.35);
+    outline-offset: 2px;
+}
+
+.employee-register-heading .employee-register-name {
+    min-width: 0;
+    flex: 1;
+    color: var(--secondary);
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+}
+
+.employee-register-heading .employee-register-name i {
+    margin-right: 6px;
+    color: var(--primary);
+}
+
+.employee-register-heading span {
+    flex: 0 0 auto;
+    color: var(--gray);
+    font-size: 0.85rem;
+}
+
+.employee-register-heading .employee-register-toggle-label {
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+.employee-register-details[hidden] {
+    display: none;
+}
+
+.employee-service-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: 12px;
+}
+
+.employee-service-card {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #e9ecef;
+    border-radius: var(--radius-sm);
+    background: #fff;
+}
+
+.employee-service-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 0.9rem;
+}
+
+.employee-service-card-header i {
+    color: var(--primary);
+}
+
+.employee-service-card-header strong {
+    color: var(--success);
+}
+
+.employee-service-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.employee-service-details div {
+    min-width: 0;
+}
+
+.employee-service-details dt {
+    color: var(--gray);
+    font-size: 0.75rem;
+}
+
+.employee-service-details dd {
+    margin: 2px 0 0;
+    color: var(--secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.employee-earnings-container {
+    width: min(100%, 700px);
+    max-width: none;
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.employee-earnings-header {
+    margin-bottom: 20px;
+}
+
+.employee-earnings-content .list-item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.employee-earnings-content .list-item-info {
+    min-width: 0;
+}
+
+.employee-earnings-content .list-item-info > div:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.employee-earnings-footer {
+    margin-top: 16px;
+}
+
+.employee-earnings-footer .btn {
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    #employeesSection .card-body {
+        padding: 18px;
+    }
+
+    #employeesSection .card-body > .btn {
+        width: 100%;
+    }
+
+    .employee-list-item {
+        align-items: flex-start;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .employee-list-item .list-item-info {
+        gap: 10px;
+    }
+
+    .employee-list-item .list-item-icon {
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+    }
+
+    .employee-list-item .list-item-actions {
+        margin-left: auto;
+    }
+
+    #reportsSection .btn-group {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    #reportsSection .btn-group .btn {
+        width: 100%;
+    }
+
+    .employee-register-modal,
+    .employee-earnings-modal {
+        padding: 0;
+        align-items: stretch;
+    }
+
+    .employee-register-container {
+        width: 100%;
+        max-height: 100vh;
+        max-height: 100dvh;
+        height: 100vh;
+        height: 100dvh;
+        border-radius: 0;
+    }
+
+    .employee-register-header {
+        padding: 16px;
+    }
+
+    .employee-register-header h2 {
+        font-size: 1.05rem;
+    }
+
+    .employee-register-heading {
+        flex-wrap: wrap;
+    }
+
+    .employee-register-heading .employee-register-name {
+        flex: 1 1 100%;
+    }
+
+    .employee-register-content {
+        padding: 16px;
+    }
+
+    .employee-service-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .employee-earnings-container {
+        width: 100%;
+        max-height: 100vh;
+        max-height: 100dvh;
+        border-radius: 0;
+        padding: 20px 16px;
+    }
+}
